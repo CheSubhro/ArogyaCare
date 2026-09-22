@@ -160,3 +160,73 @@ export async function PUT(request: Request, context: RouteContext) {
         );
     }
 }
+
+export async function PATCH(request: Request, context: RouteContext) {
+    try {
+        const authResult = requireAuth(request);
+
+        if (!authResult.success) {
+            return authResult.response;
+        }
+
+        await connectDB();
+
+        const { id } = await context.params;
+
+        const body = await request.json();
+
+        if (body.status !== 'ACTIVE' && body.status !== 'INACTIVE') {
+            return NextResponse.json(
+                {
+                    success: false,
+                    message: 'Invalid patient status',
+                },
+                { status: 400 },
+            );
+        }
+
+        const patient = await Patient.findById(id);
+
+        if (!patient) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    message: 'Patient not found',
+                },
+                { status: 404 },
+            );
+        }
+
+        patient.status = body.status;
+
+        await patient.save();
+
+        return NextResponse.json(
+            {
+                success: true,
+                message:
+                    body.status === 'ACTIVE'
+                        ? 'Patient activated successfully'
+                        : 'Patient deactivated successfully',
+                patient: {
+                    id: patient._id,
+                    patientId: patient.patientId,
+                    name: patient.name,
+                    status: patient.status,
+                    updatedAt: patient.updatedAt,
+                },
+            },
+            { status: 200 },
+        );
+    } catch (error) {
+        console.error('Update patient status error:', error);
+
+        return NextResponse.json(
+            {
+                success: false,
+                message: 'Something went wrong while updating patient status',
+            },
+            { status: 500 },
+        );
+    }
+}

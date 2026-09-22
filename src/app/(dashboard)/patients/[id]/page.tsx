@@ -41,6 +41,10 @@ export default function ViewPatientPage() {
 
     const [error, setError] = useState('');
 
+    const [statusUpdating, setStatusUpdating] = useState(false);
+
+    const [showStatusModal, setShowStatusModal] = useState(false);
+
     useEffect(() => {
         const loadPatient = async () => {
             try {
@@ -113,6 +117,59 @@ export default function ViewPatientPage() {
 
             default:
                 return '—';
+        }
+    };
+
+    const handleStatusChange = async () => {
+        if (!patient) {
+            return;
+        }
+
+        try {
+            setStatusUpdating(true);
+            setError('');
+
+            const newStatus = patient.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+
+            const response = await fetch(`/api/patients/${patientId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    status: newStatus,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    router.replace('/login');
+                    return;
+                }
+
+                setError(data.message || 'Unable to update patient status.');
+
+                return;
+            }
+
+            setPatient((previous) =>
+                previous
+                    ? {
+                          ...previous,
+                          status: data.patient.status,
+                          updatedAt: data.patient.updatedAt,
+                      }
+                    : previous,
+            );
+
+            setShowStatusModal(false);
+        } catch {
+            setError('Unable to connect to the server. Please try again.');
+        } finally {
+            setStatusUpdating(false);
         }
     };
 
@@ -190,9 +247,25 @@ export default function ViewPatientPage() {
                     </p>
                 </div>
 
-                <Link href={`/patients/${patient._id}/edit`}>
-                    <Button type="button">Edit Patient</Button>
-                </Link>
+                <div className="flex flex-wrap gap-2">
+                    <Link href={`/patients/${patient._id}/edit`}>
+                        <Button type="button">Edit Patient</Button>
+                    </Link>
+
+                    {patient.status === 'ACTIVE' ? (
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => setShowStatusModal(true)}
+                        >
+                            Deactivate
+                        </Button>
+                    ) : (
+                        <Button type="button" onClick={() => setShowStatusModal(true)}>
+                            Activate
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {/* Personal Information */}
@@ -408,6 +481,50 @@ export default function ViewPatientPage() {
                     </div>
                 </div>
             </Card>
+            {showStatusModal && patient && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-md rounded-xl bg-[var(--color-surface)] shadow-xl">
+                        <div className="border-b border-[var(--color-border)] px-6 py-4">
+                            <h2 className="text-lg font-semibold text-[var(--color-text)]">
+                                {patient.status === 'ACTIVE'
+                                    ? 'Deactivate Patient'
+                                    : 'Activate Patient'}
+                            </h2>
+                        </div>
+
+                        <div className="px-6 py-5">
+                            <p className="text-sm leading-6 text-[var(--color-text-muted)]">
+                                {patient.status === 'ACTIVE'
+                                    ? `Are you sure you want to deactivate ${patient.name}? The patient record will be retained, but the patient will be marked as inactive.`
+                                    : `Are you sure you want to activate ${patient.name}?`}
+                            </p>
+                        </div>
+
+                        <div className="flex justify-end gap-2 border-t border-[var(--color-border)] px-6 py-4">
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => setShowStatusModal(false)}
+                                disabled={statusUpdating}
+                            >
+                                Cancel
+                            </Button>
+
+                            <Button
+                                type="button"
+                                onClick={handleStatusChange}
+                                disabled={statusUpdating}
+                            >
+                                {statusUpdating
+                                    ? 'Updating...'
+                                    : patient.status === 'ACTIVE'
+                                      ? 'Deactivate'
+                                      : 'Activate'}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

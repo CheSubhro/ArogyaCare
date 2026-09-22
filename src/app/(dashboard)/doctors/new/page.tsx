@@ -1,442 +1,504 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
-import Button from "@/components/ui/Button";
-import Card from "@/components/ui/Card";
-import FormField from "@/components/ui/FormField";
-import Input from "@/components/ui/Input";
-import Select from "@/components/ui/Select";
-import Textarea from "@/components/ui/Textarea";
+import Alert from '@/components/ui/Alert';
+import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
+import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
+import Spinner from '@/components/ui/Spinner';
+import Textarea from '@/components/ui/Textarea';
 
-interface DoctorForm {
-  name: string;
-  qualification: string;
-  specialization: string;
-  registrationNumber: string;
-  mobileNumber: string;
-  email: string;
-  clinicName: string;
-  hospitalName: string;
-  address: string;
-  city: string;
-  referralType:
-    | "INDIVIDUAL"
-    | "HOSPITAL"
-    | "CLINIC"
-    | "OTHER";
-}
+export default function AddDoctorPage() {
+    const router = useRouter();
 
-const initialForm: DoctorForm = {
-  name: "",
-  qualification: "",
-  specialization: "",
-  registrationNumber: "",
-  mobileNumber: "",
-  email: "",
-  clinicName: "",
-  hospitalName: "",
-  address: "",
-  city: "",
-  referralType: "INDIVIDUAL",
-};
+    const [formData, setFormData] = useState({
+        name: '',
+        qualification: '',
+        specialization: '',
+        registrationNumber: '',
+        mobileNumber: '',
+        email: '',
+        clinicName: '',
+        hospitalName: '',
+        address: '',
+        city: '',
+        referralType: 'INDIVIDUAL',
+    });
 
-export default function NewDoctorPage() {
-  const router = useRouter();
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  const [form, setForm] =
-    useState<DoctorForm>(initialForm);
+    const handleChange = (
+        event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+    ) => {
+        const { name, value } = event.target;
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [fieldErrors, setFieldErrors] =
-    useState<Record<string, string[]>>({});
+        setFormData((previous) => ({
+            ...previous,
+            [name]: value,
+        }));
 
-  const updateField = <
-    K extends keyof DoctorForm,
-  >(
-    field: K,
-    value: DoctorForm[K],
-  ) => {
-    setForm((previous) => ({
-      ...previous,
-      [field]: value,
-    }));
-
-    setFieldErrors((previous) => ({
-      ...previous,
-      [field]: [],
-    }));
-  };
-
-  const getFieldError = (
-    field: keyof DoctorForm,
-  ) => {
-    return fieldErrors[field]?.[0];
-  };
-
-  const handleSubmit = async (
-    event: React.FormEvent<HTMLFormElement>,
-  ) => {
-    event.preventDefault();
-
-    setLoading(true);
-    setError("");
-    setFieldErrors({});
-
-    try {
-      const response = await fetch(
-        "/api/doctors",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify(form),
-        },
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (data.errors) {
-          setFieldErrors(data.errors);
+        if (fieldErrors[name]) {
+            setFieldErrors((previous) => {
+                const updated = { ...previous };
+                delete updated[name];
+                return updated;
+            });
         }
 
-        setError(
-          data.message ||
-            "Failed to add doctor",
-        );
+        if (error) {
+            setError('');
+        }
+    };
 
-        return;
-      }
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
 
-      router.push(
-        `/doctors/${data.doctor.id}`,
-      );
-    } catch {
-      setError(
-        "Something went wrong while adding doctor",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+        setLoading(true);
+        setError('');
+        setFieldErrors({});
 
-  return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--color-text)]">
-          Add Doctor / Referral
-        </h1>
+        try {
+            const payload = {
+                name: formData.name,
+                qualification: formData.qualification,
+                specialization: formData.specialization,
+                registrationNumber: formData.registrationNumber,
+                mobileNumber: formData.mobileNumber,
+                email: formData.email,
+                clinicName: formData.clinicName,
+                hospitalName: formData.hospitalName,
+                address: formData.address,
+                city: formData.city,
+                referralType: formData.referralType,
+            };
 
-        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-          Add a doctor, hospital, clinic or other
-          referral source.
-        </p>
-      </div>
+            const response = await fetch('/api/doctors', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify(payload),
+            });
 
-      {/* Error */}
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+            const data = await response.json();
 
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-6"
-      >
-        {/* Basic Information */}
-        <Card>
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-[var(--color-text)]">
-              Basic Information
-            </h2>
-
-            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-              Enter the basic details of the doctor
-              or referral source.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <FormField
-              label="Name"
-              required
-              error={getFieldError("name")}
-            >
-              <Input
-                type="text"
-                placeholder="Enter doctor / referral name"
-                value={form.name}
-                onChange={(event) =>
-                  updateField(
-                    "name",
-                    event.target.value,
-                  )
+            if (!response.ok) {
+                if (response.status === 401) {
+                    router.replace('/login');
+                    return;
                 }
-                required
-              />
-            </FormField>
 
-            <FormField
-              label="Referral Type"
-              required
-              error={getFieldError(
-                "referralType",
-              )}
-            >
-              <Select
-                value={form.referralType}
-                onChange={(event) =>
-                  updateField(
-                    "referralType",
-                    event.target.value as DoctorForm["referralType"],
-                  )
+                if (data.errors) {
+                    setFieldErrors(data.errors);
                 }
-              >
-                <option value="INDIVIDUAL">
-                  Individual Doctor
-                </option>
 
-                <option value="HOSPITAL">
-                  Hospital
-                </option>
+                setError(data.message || 'Unable to create doctor / referral.');
 
-                <option value="CLINIC">
-                  Clinic
-                </option>
-
-                <option value="OTHER">
-                  Other
-                </option>
-              </Select>
-            </FormField>
-
-            <FormField
-              label="Qualification"
-              error={getFieldError(
-                "qualification",
-              )}
-            >
-              <Input
-                type="text"
-                placeholder="e.g. MBBS, MD"
-                value={form.qualification}
-                onChange={(event) =>
-                  updateField(
-                    "qualification",
-                    event.target.value,
-                  )
-                }
-              />
-            </FormField>
-
-            <FormField
-              label="Specialization"
-              error={getFieldError(
-                "specialization",
-              )}
-            >
-              <Input
-                type="text"
-                placeholder="e.g. Cardiology"
-                value={form.specialization}
-                onChange={(event) =>
-                  updateField(
-                    "specialization",
-                    event.target.value,
-                  )
-                }
-              />
-            </FormField>
-
-            <FormField
-              label="Registration Number"
-              error={getFieldError(
-                "registrationNumber",
-              )}
-            >
-              <Input
-                type="text"
-                placeholder="Enter registration number"
-                value={
-                  form.registrationNumber
-                }
-                onChange={(event) =>
-                  updateField(
-                    "registrationNumber",
-                    event.target.value,
-                  )
-                }
-              />
-            </FormField>
-          </div>
-        </Card>
-
-        {/* Contact Information */}
-        <Card>
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-[var(--color-text)]">
-              Contact Information
-            </h2>
-
-            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-              Add phone, email and organization
-              details.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <FormField
-              label="Mobile Number"
-              error={getFieldError(
-                "mobileNumber",
-              )}
-            >
-              <Input
-                type="tel"
-                placeholder="10-digit mobile number"
-                maxLength={10}
-                value={form.mobileNumber}
-                onChange={(event) =>
-                  updateField(
-                    "mobileNumber",
-                    event.target.value,
-                  )
-                }
-              />
-            </FormField>
-
-            <FormField
-              label="Email"
-              error={getFieldError("email")}
-            >
-              <Input
-                type="email"
-                placeholder="doctor@example.com"
-                value={form.email}
-                onChange={(event) =>
-                  updateField(
-                    "email",
-                    event.target.value,
-                  )
-                }
-              />
-            </FormField>
-
-            <FormField
-              label="Clinic Name"
-              error={getFieldError(
-                "clinicName",
-              )}
-            >
-              <Input
-                type="text"
-                placeholder="Enter clinic name"
-                value={form.clinicName}
-                onChange={(event) =>
-                  updateField(
-                    "clinicName",
-                    event.target.value,
-                  )
-                }
-              />
-            </FormField>
-
-            <FormField
-              label="Hospital Name"
-              error={getFieldError(
-                "hospitalName",
-              )}
-            >
-              <Input
-                type="text"
-                placeholder="Enter hospital name"
-                value={form.hospitalName}
-                onChange={(event) =>
-                  updateField(
-                    "hospitalName",
-                    event.target.value,
-                  )
-                }
-              />
-            </FormField>
-          </div>
-        </Card>
-
-        {/* Address */}
-        <Card>
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-[var(--color-text)]">
-              Address
-            </h2>
-          </div>
-
-          <div className="space-y-5">
-            <FormField
-              label="Address"
-              error={getFieldError("address")}
-            >
-              <Textarea
-                rows={4}
-                placeholder="Enter address"
-                value={form.address}
-                onChange={(event) =>
-                  updateField(
-                    "address",
-                    event.target.value,
-                  )
-                }
-              />
-            </FormField>
-
-            <FormField
-              label="City"
-              error={getFieldError("city")}
-            >
-              <Input
-                type="text"
-                placeholder="Enter city"
-                value={form.city}
-                onChange={(event) =>
-                  updateField(
-                    "city",
-                    event.target.value,
-                  )
-                }
-              />
-            </FormField>
-          </div>
-        </Card>
-
-        {/* Actions */}
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() =>
-              router.push("/doctors")
+                return;
             }
-            disabled={loading}
-          >
-            Cancel
-          </Button>
 
-          <Button
-            type="submit"
-            disabled={loading}
-          >
-            {loading
-              ? "Saving..."
-              : "Save Doctor / Referral"}
-          </Button>
+            router.push('/doctors');
+            router.refresh();
+        } catch {
+            setError('Unable to connect to the server. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const getFieldError = (fieldName: string) => {
+        return fieldErrors[fieldName]?.[0];
+    };
+
+    return (
+        <div className="mx-auto max-w-5xl">
+            {/* Page Header */}
+            <div className="mb-6">
+                <button
+                    type="button"
+                    onClick={() => router.back()}
+                    className="mb-3 text-sm font-medium text-[var(--color-primary)] hover:underline"
+                >
+                    ← Back to Doctors / Referrals
+                </button>
+
+                <h1 className="text-2xl font-bold text-[var(--color-text)]">
+                    Add Doctor / Referral
+                </h1>
+
+                <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                    Create a new doctor or referral source record.
+                </p>
+            </div>
+
+            {/* Error */}
+            {error && (
+                <div className="mb-6">
+                    <Alert variant="danger">{error}</Alert>
+                </div>
+            )}
+
+            <form onSubmit={handleSubmit}>
+                {/* Basic Information */}
+                <Card className="mb-6">
+                    <div className="border-b border-[var(--color-border)] px-6 py-4">
+                        <h2 className="text-lg font-semibold text-[var(--color-text)]">
+                            Basic Information
+                        </h2>
+
+                        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                            Enter the basic details of the doctor or referral source.
+                        </p>
+                    </div>
+
+                    <div className="grid gap-5 p-6 md:grid-cols-2">
+                        {/* Name */}
+                        <div>
+                            <label
+                                htmlFor="name"
+                                className="mb-1.5 block text-sm font-medium text-[var(--color-text)]"
+                            >
+                                Name <span className="text-[var(--color-danger)]">*</span>
+                            </label>
+
+                            <Input
+                                id="name"
+                                name="name"
+                                value={formData.name}
+                                onChange={handleChange}
+                                placeholder="Enter doctor / referral name"
+                                disabled={loading}
+                            />
+
+                            {getFieldError('name') && (
+                                <p className="mt-1 text-xs text-[var(--color-danger)]">
+                                    {getFieldError('name')}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Referral Type */}
+                        <div>
+                            <label
+                                htmlFor="referralType"
+                                className="mb-1.5 block text-sm font-medium text-[var(--color-text)]"
+                            >
+                                Referral Type <span className="text-[var(--color-danger)]">*</span>
+                            </label>
+
+                            <Select
+                                id="referralType"
+                                name="referralType"
+                                value={formData.referralType}
+                                onChange={handleChange}
+                                disabled={loading}
+                            >
+                                <option value="INDIVIDUAL">Individual Doctor</option>
+
+                                <option value="HOSPITAL">Hospital</option>
+
+                                <option value="CLINIC">Clinic</option>
+
+                                <option value="OTHER">Other</option>
+                            </Select>
+
+                            {getFieldError('referralType') && (
+                                <p className="mt-1 text-xs text-[var(--color-danger)]">
+                                    {getFieldError('referralType')}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Qualification */}
+                        <div>
+                            <label
+                                htmlFor="qualification"
+                                className="mb-1.5 block text-sm font-medium text-[var(--color-text)]"
+                            >
+                                Qualification
+                            </label>
+
+                            <Input
+                                id="qualification"
+                                name="qualification"
+                                value={formData.qualification}
+                                onChange={handleChange}
+                                placeholder="e.g. MBBS, MD"
+                                disabled={loading}
+                            />
+
+                            {getFieldError('qualification') && (
+                                <p className="mt-1 text-xs text-[var(--color-danger)]">
+                                    {getFieldError('qualification')}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Specialization */}
+                        <div>
+                            <label
+                                htmlFor="specialization"
+                                className="mb-1.5 block text-sm font-medium text-[var(--color-text)]"
+                            >
+                                Specialization
+                            </label>
+
+                            <Input
+                                id="specialization"
+                                name="specialization"
+                                value={formData.specialization}
+                                onChange={handleChange}
+                                placeholder="e.g. Cardiology"
+                                disabled={loading}
+                            />
+
+                            {getFieldError('specialization') && (
+                                <p className="mt-1 text-xs text-[var(--color-danger)]">
+                                    {getFieldError('specialization')}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Registration Number */}
+                        <div>
+                            <label
+                                htmlFor="registrationNumber"
+                                className="mb-1.5 block text-sm font-medium text-[var(--color-text)]"
+                            >
+                                Registration Number
+                            </label>
+
+                            <Input
+                                id="registrationNumber"
+                                name="registrationNumber"
+                                value={formData.registrationNumber}
+                                onChange={handleChange}
+                                placeholder="Enter registration number"
+                                disabled={loading}
+                            />
+
+                            {getFieldError('registrationNumber') && (
+                                <p className="mt-1 text-xs text-[var(--color-danger)]">
+                                    {getFieldError('registrationNumber')}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </Card>
+
+                {/* Contact Information */}
+                <Card className="mb-6">
+                    <div className="border-b border-[var(--color-border)] px-6 py-4">
+                        <h2 className="text-lg font-semibold text-[var(--color-text)]">
+                            Contact Information
+                        </h2>
+
+                        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                            Enter contact and organization details.
+                        </p>
+                    </div>
+
+                    <div className="grid gap-5 p-6 md:grid-cols-2">
+                        {/* Mobile */}
+                        <div>
+                            <label
+                                htmlFor="mobileNumber"
+                                className="mb-1.5 block text-sm font-medium text-[var(--color-text)]"
+                            >
+                                Mobile Number
+                            </label>
+
+                            <Input
+                                id="mobileNumber"
+                                name="mobileNumber"
+                                type="tel"
+                                value={formData.mobileNumber}
+                                onChange={handleChange}
+                                placeholder="Enter 10-digit mobile number"
+                                maxLength={10}
+                                disabled={loading}
+                            />
+
+                            {getFieldError('mobileNumber') && (
+                                <p className="mt-1 text-xs text-[var(--color-danger)]">
+                                    {getFieldError('mobileNumber')}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Email */}
+                        <div>
+                            <label
+                                htmlFor="email"
+                                className="mb-1.5 block text-sm font-medium text-[var(--color-text)]"
+                            >
+                                Email
+                            </label>
+
+                            <Input
+                                id="email"
+                                name="email"
+                                type="email"
+                                value={formData.email}
+                                onChange={handleChange}
+                                placeholder="Enter email address"
+                                disabled={loading}
+                            />
+
+                            {getFieldError('email') && (
+                                <p className="mt-1 text-xs text-[var(--color-danger)]">
+                                    {getFieldError('email')}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Clinic */}
+                        <div>
+                            <label
+                                htmlFor="clinicName"
+                                className="mb-1.5 block text-sm font-medium text-[var(--color-text)]"
+                            >
+                                Clinic Name
+                            </label>
+
+                            <Input
+                                id="clinicName"
+                                name="clinicName"
+                                value={formData.clinicName}
+                                onChange={handleChange}
+                                placeholder="Enter clinic name"
+                                disabled={loading}
+                            />
+
+                            {getFieldError('clinicName') && (
+                                <p className="mt-1 text-xs text-[var(--color-danger)]">
+                                    {getFieldError('clinicName')}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Hospital */}
+                        <div>
+                            <label
+                                htmlFor="hospitalName"
+                                className="mb-1.5 block text-sm font-medium text-[var(--color-text)]"
+                            >
+                                Hospital Name
+                            </label>
+
+                            <Input
+                                id="hospitalName"
+                                name="hospitalName"
+                                value={formData.hospitalName}
+                                onChange={handleChange}
+                                placeholder="Enter hospital name"
+                                disabled={loading}
+                            />
+
+                            {getFieldError('hospitalName') && (
+                                <p className="mt-1 text-xs text-[var(--color-danger)]">
+                                    {getFieldError('hospitalName')}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </Card>
+
+                {/* Address Information */}
+                <Card className="mb-6">
+                    <div className="border-b border-[var(--color-border)] px-6 py-4">
+                        <h2 className="text-lg font-semibold text-[var(--color-text)]">
+                            Address Information
+                        </h2>
+
+                        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                            Enter the referral source address details.
+                        </p>
+                    </div>
+
+                    <div className="grid gap-5 p-6 md:grid-cols-2">
+                        {/* Address */}
+                        <div className="md:col-span-2">
+                            <label
+                                htmlFor="address"
+                                className="mb-1.5 block text-sm font-medium text-[var(--color-text)]"
+                            >
+                                Address
+                            </label>
+
+                            <Textarea
+                                id="address"
+                                name="address"
+                                value={formData.address}
+                                onChange={handleChange}
+                                placeholder="Enter full address"
+                                rows={4}
+                                disabled={loading}
+                            />
+
+                            {getFieldError('address') && (
+                                <p className="mt-1 text-xs text-[var(--color-danger)]">
+                                    {getFieldError('address')}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* City */}
+                        <div>
+                            <label
+                                htmlFor="city"
+                                className="mb-1.5 block text-sm font-medium text-[var(--color-text)]"
+                            >
+                                City
+                            </label>
+
+                            <Input
+                                id="city"
+                                name="city"
+                                value={formData.city}
+                                onChange={handleChange}
+                                placeholder="Enter city"
+                                disabled={loading}
+                            />
+
+                            {getFieldError('city') && (
+                                <p className="mt-1 text-xs text-[var(--color-danger)]">
+                                    {getFieldError('city')}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </Card>
+
+                {/* Actions */}
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => router.back()}
+                        disabled={loading}
+                    >
+                        Cancel
+                    </Button>
+
+                    <Button type="submit" disabled={loading}>
+                        {loading ? (
+                            <span className="flex items-center gap-2">
+                                <Spinner />
+                                Saving...
+                            </span>
+                        ) : (
+                            'Save Doctor / Referral'
+                        )}
+                    </Button>
+                </div>
+            </form>
         </div>
-      </form>
-    </div>
-  );
+    );
 }

@@ -14,12 +14,13 @@
 [x] FormField
 [x] Select
 [x] Card
-[ ] Badge
+[x] Badge
 [ ] Modal
 [ ] Alert
 [ ] Spinner
 [ ] Table
 [ ] Dropdown
+
 [ ] User Model
 ↓
 [ ] Zod Auth Validation

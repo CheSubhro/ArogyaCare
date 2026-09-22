@@ -14,8 +14,36 @@ const menuItems = [
         href: '/dashboard',
     },
     {
-        label: 'Profile',
-        href: '/profile',
+        label: 'Patients',
+        href: '/patients',
+    },
+    {
+        label: 'Doctors / Referrals',
+        href: '/doctors',
+    },
+    {
+        label: 'Tests',
+        href: '/tests',
+    },
+    {
+        label: 'Test Categories',
+        href: '/test-categories',
+    },
+    {
+        label: 'Lab Samples',
+        href: '/lab-samples',
+    },
+    {
+        label: 'Billing',
+        href: '/billing',
+    },
+    {
+        label: 'Reports',
+        href: '/reports',
+    },
+    {
+        label: 'Settings',
+        href: '/settings',
     },
 ];
 

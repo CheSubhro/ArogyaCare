@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
-export const registerSchema = z
-    .object({
+export const registerSchema = z.object({
         name: z
             .string()
             .trim()
@@ -44,3 +43,13 @@ export const registerSchema = z
     });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
+
+export const loginSchema = z.object({
+    identifier: z.string().trim().min(1, 'Email or username is required'),
+
+    password: z.string().min(1, 'Password is required'),
+
+    rememberMe: z.boolean().optional().default(false),
+});
+
+export type LoginInput = z.infer<typeof loginSchema>;

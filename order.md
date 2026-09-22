@@ -22,6 +22,11 @@
 [x] Dropdown
 
 [x] User Model
+[x] Registration Validation
+[x] Registration API
+[x] Password Hashing
+[x] Duplicate Email Check
+[x] Duplicate Username Check
 ↓
 [ ] Zod Auth Validation
 ↓
@@ -71,7 +76,7 @@
 
 ## Authentication
 
-[ ] Registration
+[x] Registration
 [ ] Login / Logout
 [ ] JWT
 [ ] Access + Refresh Token

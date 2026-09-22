@@ -18,7 +18,7 @@
 [x] Modal
 [x] Alert
 [x] Spinner
-[ ] Table
+[x] Table
 [ ] Dropdown
 
 [ ] User Model

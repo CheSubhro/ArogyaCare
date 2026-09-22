@@ -41,6 +41,7 @@ export default function DashboardLayout({
                         return;
                     }
 
+                    setLoading(false);
                     return;
                 }
 
@@ -69,19 +70,15 @@ export default function DashboardLayout({
 
     return (
         <div className="flex min-h-screen bg-[var(--color-background)]">
-            {/* Sidebar */}
             <Sidebar mobileOpen={mobileSidebarOpen} onClose={() => setMobileSidebarOpen(false)} />
 
-            {/* Main Area */}
             <div className="flex min-w-0 flex-1 flex-col">
-                {/* Header */}
                 <Header
                     onMenuClick={() => setMobileSidebarOpen(true)}
                     userName={user.name}
                     userEmail={user.email}
                 />
 
-                {/* Page Content */}
                 <main className="flex-1 overflow-auto p-4 sm:p-6">{children}</main>
             </div>
         </div>

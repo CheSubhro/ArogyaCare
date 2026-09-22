@@ -15,8 +15,8 @@
 [x] Select
 [x] Card
 [x] Badge
-[ ] Modal
-[ ] Alert
+[x] Modal
+[x] Alert
 [ ] Spinner
 [ ] Table
 [ ] Dropdown

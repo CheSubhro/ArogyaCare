@@ -83,8 +83,8 @@
 [x] Refresh Token
 [x] HttpOnly Cookie
 [x] Password Hashing
-[ ] Forgot Password
-[ ] Reset Password
+[x] Forgot Password
+[x] Reset Password
 [ ] Email Verification
 [x] Current User
 [ ] Profile functionality

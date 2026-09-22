@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import Link from "next/link";
@@ -107,242 +106,257 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-lg">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-[var(--color-text)]">
-            ArogyaCare Diagnostics
-          </h1>
+    <main
+      className="min-h-screen bg-cover bg-center bg-no-repeat px-4 py-10"
+      style={{
+        backgroundImage: "url('/images/auth-bg.jpg')",
+      }}
+    >
+      <div className="min-h-[calc(100vh-5rem)] flex items-center justify-center rounded-xl bg-white/60 px-2 py-6">
+        <div className="w-full max-w-lg">
+          <div className="mb-8 text-center">
+            <h1 className="text-3xl font-bold text-[var(--color-text)]">
+              ArogyaCare Diagnostics
+            </h1>
 
-          <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-            Create your account
-          </p>
-        </div>
-
-        <Card>
-          <div className="p-6 sm:p-8">
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-[var(--color-text)]">
-                Registration
-              </h2>
-
-              <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                Enter your details to create your account.
-              </p>
-            </div>
-
-            {error && (
-              <div className="mb-5">
-                <Alert variant="danger">
-                  {error}
-                </Alert>
-              </div>
-            )}
-
-            {success && (
-              <div className="mb-5">
-                <Alert variant="success">
-                  {success}
-                </Alert>
-              </div>
-            )}
-
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-5"
-            >
-              <FormField
-                label="Full Name"
-                required
-              >
-                <Input
-                  type="text"
-                  value={name}
-                  onChange={(event) =>
-                    setName(event.target.value)
-                  }
-                  placeholder="Enter your full name"
-                  autoComplete="name"
-                  disabled={loading}
-                  required
-                />
-              </FormField>
-
-              <FormField
-                label="Email Address"
-                required
-              >
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(event) =>
-                    setEmail(event.target.value)
-                  }
-                  placeholder="Enter your email address"
-                  autoComplete="email"
-                  disabled={loading}
-                  required
-                />
-              </FormField>
-
-              <FormField label="Username">
-                <Input
-                  type="text"
-                  value={username}
-                  onChange={(event) =>
-                    setUsername(event.target.value)
-                  }
-                  placeholder="Enter username (optional)"
-                  autoComplete="username"
-                  disabled={loading}
-                />
-
-                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                  3–30 characters. Letters, numbers and
-                  underscore only.
-                </p>
-              </FormField>
-
-              <FormField label="Mobile Number">
-                <Input
-                  type="tel"
-                  value={mobileNumber}
-                  onChange={(event) =>
-                    setMobileNumber(event.target.value)
-                  }
-                  placeholder="Enter 10 digit mobile number"
-                  autoComplete="tel"
-                  maxLength={10}
-                  inputMode="numeric"
-                  disabled={loading}
-                />
-              </FormField>
-
-              <FormField
-                label="Password"
-                required
-              >
-                <div className="relative">
-                  <Input
-                    type={
-                      showPassword
-                        ? "text"
-                        : "password"
-                    }
-                    value={password}
-                    onChange={(event) =>
-                      setPassword(event.target.value)
-                    }
-                    placeholder="Create a strong password"
-                    autoComplete="new-password"
-                    disabled={loading}
-                    required
-                    className="pr-10"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowPassword(
-                        (previous) => !previous,
-                      )
-                    }
-                    disabled={loading}
-                    aria-label={
-                      showPassword
-                        ? "Hide password"
-                        : "Show password"
-                    }
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] transition hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {showPassword ? (
-                      <EyeOffIcon />
-                    ) : (
-                      <EyeIcon />
-                    )}
-                  </button>
-                </div>
-
-                <p className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">
-                  Password must contain at least 8
-                  characters, one uppercase letter, one
-                  lowercase letter, one number and one
-                  special character.
-                </p>
-              </FormField>
-
-              <FormField
-                label="Confirm Password"
-                required
-              >
-                <div className="relative">
-                  <Input
-                    type={
-                      showConfirmPassword
-                        ? "text"
-                        : "password"
-                    }
-                    value={confirmPassword}
-                    onChange={(event) =>
-                      setConfirmPassword(
-                        event.target.value,
-                      )
-                    }
-                    placeholder="Confirm your password"
-                    autoComplete="new-password"
-                    disabled={loading}
-                    required
-                    className="pr-10"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowConfirmPassword(
-                        (previous) => !previous,
-                      )
-                    }
-                    disabled={loading}
-                    aria-label={
-                      showConfirmPassword
-                        ? "Hide confirm password"
-                        : "Show confirm password"
-                    }
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] transition hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOffIcon />
-                    ) : (
-                      <EyeIcon />
-                    )}
-                  </button>
-                </div>
-              </FormField>
-
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={loading}
-              >
-                {loading
-                  ? "Creating account..."
-                  : "Create Account"}
-              </Button>
-            </form>
-
-            <div className="mt-6 border-t border-[var(--color-border)] pt-6 text-center">
-              <p className="text-sm text-[var(--color-text-muted)]">
-                Already have an account?{" "}
-                <Link
-                  href="/login"
-                  className="font-medium text-[var(--color-primary)] hover:text-[var(--color-primary-hover)]"
-                >
-                  Login
-                </Link>
-              </p>
-            </div>
+            <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+              Create your account
+            </p>
           </div>
-        </Card>
+
+          <Card>
+            <div className="p-6 sm:p-8">
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold text-[var(--color-text)]">
+                  Registration
+                </h2>
+
+                <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                  Enter your details to create your account.
+                </p>
+              </div>
+
+              {error && (
+                <div className="mb-5">
+                  <Alert variant="danger">
+                    {error}
+                  </Alert>
+                </div>
+              )}
+
+              {success && (
+                <div className="mb-5">
+                  <Alert variant="success">
+                    {success}
+                  </Alert>
+                </div>
+              )}
+
+              <form
+                onSubmit={handleSubmit}
+                className="space-y-5"
+              >
+                {/* Full Name */}
+                <FormField
+                  label="Full Name"
+                  required
+                >
+                  <Input
+                    type="text"
+                    value={name}
+                    onChange={(event) =>
+                      setName(event.target.value)
+                    }
+                    placeholder="Enter your full name"
+                    autoComplete="name"
+                    disabled={loading}
+                    required
+                  />
+                </FormField>
+
+                {/* Email */}
+                <FormField
+                  label="Email Address"
+                  required
+                >
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(event) =>
+                      setEmail(event.target.value)
+                    }
+                    placeholder="Enter your email address"
+                    autoComplete="email"
+                    disabled={loading}
+                    required
+                  />
+                </FormField>
+
+                {/* Username */}
+                <FormField label="Username">
+                  <Input
+                    type="text"
+                    value={username}
+                    onChange={(event) =>
+                      setUsername(event.target.value)
+                    }
+                    placeholder="Enter username (optional)"
+                    autoComplete="username"
+                    disabled={loading}
+                  />
+
+                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                    3–30 characters. Letters, numbers and
+                    underscore only.
+                  </p>
+                </FormField>
+
+                {/* Mobile Number */}
+                <FormField label="Mobile Number">
+                  <Input
+                    type="tel"
+                    value={mobileNumber}
+                    onChange={(event) =>
+                      setMobileNumber(event.target.value)
+                    }
+                    placeholder="Enter 10 digit mobile number"
+                    autoComplete="tel"
+                    maxLength={10}
+                    inputMode="numeric"
+                    disabled={loading}
+                  />
+                </FormField>
+
+                {/* Password */}
+                <FormField
+                  label="Password"
+                  required
+                >
+                  <div className="relative">
+                    <Input
+                      type={
+                        showPassword
+                          ? "text"
+                          : "password"
+                      }
+                      value={password}
+                      onChange={(event) =>
+                        setPassword(event.target.value)
+                      }
+                      placeholder="Create a strong password"
+                      autoComplete="new-password"
+                      disabled={loading}
+                      required
+                      className="pr-10"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowPassword(
+                          (previous) => !previous,
+                        )
+                      }
+                      disabled={loading}
+                      aria-label={
+                        showPassword
+                          ? "Hide password"
+                          : "Show password"
+                      }
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] transition hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {showPassword ? (
+                        <EyeOffIcon />
+                      ) : (
+                        <EyeIcon />
+                      )}
+                    </button>
+                  </div>
+
+                  <p className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">
+                    Password must contain at least 8
+                    characters, one uppercase letter, one
+                    lowercase letter, one number and one
+                    special character.
+                  </p>
+                </FormField>
+
+                {/* Confirm Password */}
+                <FormField
+                  label="Confirm Password"
+                  required
+                >
+                  <div className="relative">
+                    <Input
+                      type={
+                        showConfirmPassword
+                          ? "text"
+                          : "password"
+                      }
+                      value={confirmPassword}
+                      onChange={(event) =>
+                        setConfirmPassword(
+                          event.target.value,
+                        )
+                      }
+                      placeholder="Confirm your password"
+                      autoComplete="new-password"
+                      disabled={loading}
+                      required
+                      className="pr-10"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowConfirmPassword(
+                          (previous) => !previous,
+                        )
+                      }
+                      disabled={loading}
+                      aria-label={
+                        showConfirmPassword
+                          ? "Hide confirm password"
+                          : "Show confirm password"
+                      }
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] transition hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOffIcon />
+                      ) : (
+                        <EyeIcon />
+                      )}
+                    </button>
+                  </div>
+                </FormField>
+
+                {/* Submit */}
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={loading}
+                >
+                  {loading
+                    ? "Creating account..."
+                    : "Create Account"}
+                </Button>
+              </form>
+
+              <div className="mt-6 border-t border-[var(--color-border)] pt-6 text-center">
+                <p className="text-sm text-[var(--color-text-muted)]">
+                  Already have an account?{" "}
+
+                  <Link
+                    href="/login"
+                    className="font-medium text-[var(--color-primary)] hover:text-[var(--color-primary-hover)]"
+                  >
+                    Login
+                  </Link>
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
       </div>
     </main>
   );
@@ -411,4 +425,3 @@ function EyeOffIcon() {
     </svg>
   );
 }
-

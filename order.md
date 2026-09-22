@@ -13,7 +13,7 @@
 [x] Input
 [x] FormField
 [x] Select
-[ ] Card
+[x] Card
 [ ] Badge
 [ ] Modal
 [ ] Alert

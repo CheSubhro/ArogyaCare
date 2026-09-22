@@ -68,3 +68,32 @@
 [ ] Testing
 ↓
 [ ] Production Security
+
+## Authentication
+
+[ ] Registration
+[ ] Login / Logout
+[ ] JWT
+[ ] Access + Refresh Token
+[ ] HttpOnly Cookie
+[ ] Password hashing
+[ ] Forgot/Reset Password
+[ ] Email verification
+[ ] Profile
+[ ] Role-based access
+[ ] Permission-based access
+[ ] Protected routes/API
+[ ] Admin user management
+[ ] Account status
+[ ] Login security
+[ ] Session/device management
+[ ] Audit logs
+[ ] 2FA
+
+## Database
+
+[x] User Model
+[ ] Session / Refresh Token Model
+[ ] Role Model
+[ ] Permission Model
+[ ] Audit Log Model

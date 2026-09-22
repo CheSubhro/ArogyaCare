@@ -66,3 +66,33 @@ export function requireAuth(
         };
     }
 }
+
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'STAFF' | 'USER';
+
+export function requireRole(
+    request: Request,
+    allowedRoles: UserRole[],
+): { success: true; user: AuthenticatedUser } | { success: false; response: NextResponse } {
+    const authResult = requireAuth(request);
+
+    if (!authResult.success) {
+        return authResult;
+    }
+
+    const hasPermission = allowedRoles.includes(authResult.user.role as UserRole);
+
+    if (!hasPermission) {
+        return {
+            success: false,
+            response: NextResponse.json(
+                {
+                    success: false,
+                    message: 'You do not have permission to access this resource',
+                },
+                { status: 403 },
+            ),
+        };
+    }
+
+    return authResult;
+}

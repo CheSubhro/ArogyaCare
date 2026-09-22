@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 
 import { verifyAccessToken } from '@/lib/jwt';
 
+import Role from '@/models/Role';
+
 export interface AuthenticatedUser {
     userId: string;
     role: string;
@@ -80,6 +82,56 @@ export function requireRole(
     }
 
     const hasPermission = allowedRoles.includes(authResult.user.role as UserRole);
+
+    if (!hasPermission) {
+        return {
+            success: false,
+            response: NextResponse.json(
+                {
+                    success: false,
+                    message: 'You do not have permission to access this resource',
+                },
+                { status: 403 },
+            ),
+        };
+    }
+
+    return authResult;
+}
+
+export async function requirePermission(
+    request: Request,
+    permissionName: string,
+): Promise<
+    { success: true; user: AuthenticatedUser } | { success: false; response: NextResponse }
+> {
+    const authResult = requireAuth(request);
+
+    if (!authResult.success) {
+        return authResult;
+    }
+
+    const role = await Role.findOne({
+        name: authResult.user.role,
+        isActive: true,
+    }).populate('permissions');
+
+    if (!role) {
+        return {
+            success: false,
+            response: NextResponse.json(
+                {
+                    success: false,
+                    message: 'User role is invalid or inactive',
+                },
+                { status: 403 },
+            ),
+        };
+    }
+
+    const hasPermission = role.permissions.some(
+        (permission: any) => permission.isActive && permission.name === permissionName,
+    );
 
     if (!hasPermission) {
         return {

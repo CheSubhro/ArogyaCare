@@ -5,7 +5,7 @@ import { connectDB } from '@/lib/db';
 import User from '@/models/User';
 import Session from '@/models/Session';
 
-import { generateAccessToken, verifyRefreshToken } from '@/lib/jwt';
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '@/lib/jwt';
 
 export async function POST(request: Request) {
     try {
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
             userId: payload.userId,
             refreshTokenHash,
             expiresAt: { $gt: new Date() },
-        });
+        }).select('+refreshTokenHash');
 
         if (!session) {
             return NextResponse.json(
@@ -85,25 +85,59 @@ export async function POST(request: Request) {
             );
         }
 
+        /*
+         * Generate new Access Token
+         */
         const accessToken = generateAccessToken({
             userId: user._id.toString(),
             role: user.role,
         });
 
+        /*
+         * Generate new Refresh Token
+         */
+        const newRefreshToken = generateRefreshToken({
+            userId: user._id.toString(),
+            sessionId: session._id.toString(),
+        });
+
+        /*
+         * Hash new Refresh Token before storing it
+         */
+        const newRefreshTokenHash = createHash('sha256').update(newRefreshToken).digest('hex');
+
+        session.refreshTokenHash = newRefreshTokenHash;
+
+        await session.save();
+
         const response = NextResponse.json(
             {
                 success: true,
-                message: 'Access token refreshed',
+                message: 'Tokens refreshed successfully',
             },
             { status: 200 },
         );
 
+        /*
+         * New Access Token Cookie
+         */
         response.cookies.set('accessToken', accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             path: '/',
             maxAge: 15 * 60,
+        });
+
+        /*
+         * New Refresh Token Cookie
+         */
+        response.cookies.set('refreshToken', newRefreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 30 * 24 * 60 * 60,
         });
 
         return response;

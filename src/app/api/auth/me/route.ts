@@ -2,46 +2,19 @@ import { NextResponse } from 'next/server';
 
 import { connectDB } from '@/lib/db';
 import User from '@/models/User';
-import { verifyAccessToken } from '@/lib/jwt';
+import { requireAuth } from '@/lib/auth';
 
 export async function GET(request: Request) {
     try {
+        const authResult = requireAuth(request);
+
+        if (!authResult.success) {
+            return authResult.response;
+        }
+
         await connectDB();
 
-        const accessToken = request.headers
-            .get('cookie')
-            ?.split(';')
-            .map((cookie) => cookie.trim())
-            .find((cookie) => cookie.startsWith('accessToken='))
-            ?.split('=')
-            .slice(1)
-            .join('=');
-
-        if (!accessToken) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: 'Authentication required',
-                },
-                { status: 401 },
-            );
-        }
-
-        let payload;
-
-        try {
-            payload = verifyAccessToken(accessToken);
-        } catch {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: 'Invalid or expired access token',
-                },
-                { status: 401 },
-            );
-        }
-
-        const user = await User.findById(payload.userId).select('-password');
+        const user = await User.findById(authResult.user.userId).select('-password');
 
         if (!user) {
             return NextResponse.json(

@@ -6,7 +6,7 @@
 ↓
 [x] MongoDB Connection
 ↓
-[ ] UI Design System
+[x] UI Design System
 [x] Colors
 [x] Typography
 [x] Button
@@ -19,9 +19,9 @@
 [x] Alert
 [x] Spinner
 [x] Table
-[ ] Dropdown
+[x] Dropdown
 
-[ ] User Model
+[x] User Model
 ↓
 [ ] Zod Auth Validation
 ↓

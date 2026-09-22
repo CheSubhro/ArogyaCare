@@ -17,7 +17,7 @@
 [x] Badge
 [x] Modal
 [x] Alert
-[ ] Spinner
+[x] Spinner
 [ ] Table
 [ ] Dropdown
 

@@ -9,7 +9,7 @@
 [ ] UI Design System
 [x] Colors
 [x] Typography
-[ ] Button
+[x] Button
 [ ] Input
 [ ] FormField
 [ ] Select

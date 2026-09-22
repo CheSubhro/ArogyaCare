@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { connectDB } from '@/lib/db';
 import User from '@/models/User';
 import { loginSchema } from '@/lib/validations/auth';
+import { generateAccessToken } from '@/lib/jwt';
 
 export async function POST(request: Request) {
     try {
@@ -64,7 +65,13 @@ export async function POST(request: Request) {
             );
         }
 
-        return NextResponse.json(
+        // Generate JWT Access Token
+        const accessToken = generateAccessToken({
+            userId: user._id.toString(),
+            role: user.role,
+        });
+
+        const response = NextResponse.json(
             {
                 success: true,
                 message: 'Login successful',
@@ -79,6 +86,16 @@ export async function POST(request: Request) {
             },
             { status: 200 },
         );
+
+        response.cookies.set('accessToken', accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 15 * 60,
+        });
+
+        return response;
     } catch (error) {
         console.error('Login error:', error);
 

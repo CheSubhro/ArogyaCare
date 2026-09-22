@@ -88,3 +88,69 @@ export async function POST(request: Request) {
         );
     }
 }
+
+export async function GET(request: Request) {
+    try {
+        const authResult = requireAuth(request);
+
+        if (!authResult.success) {
+            return authResult.response;
+        }
+
+        await connectDB();
+
+        const { searchParams } = new URL(request.url);
+
+        const search = searchParams.get('search')?.trim();
+
+        const query: Record<string, unknown> = {};
+
+        if (search) {
+            query.$or = [
+                {
+                    patientId: {
+                        $regex: search,
+                        $options: 'i',
+                    },
+                },
+                {
+                    name: {
+                        $regex: search,
+                        $options: 'i',
+                    },
+                },
+                {
+                    mobileNumber: {
+                        $regex: search,
+                        $options: 'i',
+                    },
+                },
+            ];
+        }
+
+        const patients = await Patient.find(query)
+            .sort({ createdAt: -1 })
+            .select(
+                'patientId name gender age mobileNumber email city bloodGroup status createdAt updatedAt',
+            )
+            .lean();
+
+        return NextResponse.json(
+            {
+                success: true,
+                patients,
+            },
+            { status: 200 },
+        );
+    } catch (error) {
+        console.error('Get patients error:', error);
+
+        return NextResponse.json(
+            {
+                success: false,
+                message: 'Something went wrong while fetching patients',
+            },
+            { status: 500 },
+        );
+    }
+}

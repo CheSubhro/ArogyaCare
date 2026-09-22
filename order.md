@@ -10,7 +10,7 @@
 [x] Colors
 [x] Typography
 [x] Button
-[ ] Input
+[x] Input
 [ ] FormField
 [ ] Select
 [ ] Card

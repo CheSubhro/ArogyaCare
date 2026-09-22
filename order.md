@@ -123,3 +123,41 @@
 [ ] Testing
 [ ] Security hardening
 [ ] Production security checklist
+
+1. Auth UI Integration
+   ├── Login
+   ├── Register
+   ├── Forgot Password
+   └── Reset Password
+
+2. Protected Frontend
+   ├── Auth state
+   ├── Current user
+   ├── Logout
+   └── Route protection
+
+3. Dashboard Layout
+   ├── Sidebar
+   ├── Header
+   ├── User menu
+   └── Responsive layout
+
+4. Profile
+   ├── Profile information
+   ├── Change password
+   └── Active sessions/devices
+
+5. Admin UI
+   ├── Users
+   ├── Roles
+   └── Permissions
+
+6. এরপর মূল Diagnostics modules
+   ├── Patients
+   ├── Doctors/Referrals
+   ├── Tests
+   ├── Test Categories
+   ├── Lab Samples
+   ├── Billing
+   ├── Reports
+   └── Settings

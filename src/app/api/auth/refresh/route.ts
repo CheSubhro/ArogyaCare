@@ -1,30 +1,44 @@
 import { NextResponse } from 'next/server';
-import { createHash } from 'crypto';
+import crypto from 'crypto';
 
 import { connectDB } from '@/lib/db';
 import User from '@/models/User';
 import Session from '@/models/Session';
-
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '@/lib/jwt';
+
+function getRefreshTokenFromRequest(request: Request): string | null {
+    const cookieHeader = request.headers.get('cookie');
+
+    if (!cookieHeader) {
+        return null;
+    }
+
+    const refreshToken = cookieHeader
+        .split(';')
+        .map((cookie) => cookie.trim())
+        .find((cookie) => cookie.startsWith('refreshToken='))
+        ?.split('=')
+        .slice(1)
+        .join('=');
+
+    return refreshToken || null;
+}
+
+function hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+}
 
 export async function POST(request: Request) {
     try {
         await connectDB();
 
-        const refreshToken = request.headers
-            .get('cookie')
-            ?.split(';')
-            .map((cookie) => cookie.trim())
-            .find((cookie) => cookie.startsWith('refreshToken='))
-            ?.split('=')
-            .slice(1)
-            .join('=');
+        const refreshToken = getRefreshTokenFromRequest(request);
 
         if (!refreshToken) {
             return NextResponse.json(
                 {
                     success: false,
-                    message: 'Refresh token is missing',
+                    message: 'Refresh token is required',
                 },
                 { status: 401 },
             );
@@ -44,20 +58,44 @@ export async function POST(request: Request) {
             );
         }
 
-        const refreshTokenHash = createHash('sha256').update(refreshToken).digest('hex');
+        const refreshTokenHash = hashToken(refreshToken);
 
+        /*
+         * Find the session using:
+         * - session ID
+         * - user ID
+         * - hashed refresh token
+         * - non-expired session
+         */
         const session = await Session.findOne({
             _id: payload.sessionId,
             userId: payload.userId,
             refreshTokenHash,
-            expiresAt: { $gt: new Date() },
+            expiresAt: {
+                $gt: new Date(),
+            },
         }).select('+refreshTokenHash');
 
+        /*
+         * Token itself is valid, but it does not match
+         * the currently stored refresh token.
+         *
+         * This can indicate refresh-token reuse.
+         */
         if (!session) {
+            /*
+             * Revoke the session associated with the
+             * refresh token payload.
+             */
+            await Session.deleteOne({
+                _id: payload.sessionId,
+                userId: payload.userId,
+            });
+
             return NextResponse.json(
                 {
                     success: false,
-                    message: 'Session is invalid or expired',
+                    message: 'Refresh token reuse detected. Session has been revoked.',
                 },
                 { status: 401 },
             );
@@ -66,16 +104,24 @@ export async function POST(request: Request) {
         const user = await User.findById(payload.userId);
 
         if (!user) {
+            await Session.deleteOne({
+                _id: session._id,
+            });
+
             return NextResponse.json(
                 {
                     success: false,
-                    message: 'User not found',
+                    message: 'User account not found',
                 },
                 { status: 401 },
             );
         }
 
         if (user.accountStatus !== 'ACTIVE') {
+            await Session.deleteOne({
+                _id: session._id,
+            });
+
             return NextResponse.json(
                 {
                     success: false,
@@ -86,26 +132,23 @@ export async function POST(request: Request) {
         }
 
         /*
-         * Generate new Access Token
+         * Generate new token pair.
          */
-        const accessToken = generateAccessToken({
+        const newAccessToken = generateAccessToken({
             userId: user._id.toString(),
             role: user.role,
         });
 
-        /*
-         * Generate new Refresh Token
-         */
         const newRefreshToken = generateRefreshToken({
             userId: user._id.toString(),
             sessionId: session._id.toString(),
         });
 
-        /*
-         * Hash new Refresh Token before storing it
-         */
-        const newRefreshTokenHash = createHash('sha256').update(newRefreshToken).digest('hex');
+        const newRefreshTokenHash = hashToken(newRefreshToken);
 
+        /*
+         * Rotate refresh token.
+         */
         session.refreshTokenHash = newRefreshTokenHash;
 
         await session.save();
@@ -113,15 +156,14 @@ export async function POST(request: Request) {
         const response = NextResponse.json(
             {
                 success: true,
-                message: 'Tokens refreshed successfully',
+                message: 'Token refreshed successfully',
             },
             { status: 200 },
         );
 
-        /*
-         * New Access Token Cookie
-         */
-        response.cookies.set('accessToken', accessToken, {
+        response.cookies.set({
+            name: 'accessToken',
+            value: newAccessToken,
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
@@ -129,10 +171,9 @@ export async function POST(request: Request) {
             maxAge: 15 * 60,
         });
 
-        /*
-         * New Refresh Token Cookie
-         */
-        response.cookies.set('refreshToken', newRefreshToken, {
+        response.cookies.set({
+            name: 'refreshToken',
+            value: newRefreshToken,
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
@@ -147,7 +188,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
             {
                 success: false,
-                message: 'Something went wrong while refreshing token',
+                message: 'Something went wrong while refreshing the token',
             },
             { status: 500 },
         );

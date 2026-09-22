@@ -27,9 +27,12 @@ export function generateAccessToken(payload: AccessTokenPayload): string {
     });
 }
 
-export function generateRefreshToken(payload: RefreshTokenPayload): string {
+export function generateRefreshToken(
+    payload: RefreshTokenPayload,
+    rememberMe: boolean = false,
+): string {
     return jwt.sign(payload, JWT_REFRESH_SECRET, {
-        expiresIn: '30d',
+        expiresIn: rememberMe ? '30d' : '7d',
     });
 }
 

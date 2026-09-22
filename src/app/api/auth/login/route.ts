@@ -178,10 +178,13 @@ export async function POST(request: Request) {
             role: user.role,
         });
 
-        const refreshToken = generateRefreshToken({
-            userId: user._id.toString(),
-            sessionId: session._id.toString(),
-        });
+        const refreshToken = generateRefreshToken(
+            {
+                userId: user._id.toString(),
+                sessionId: session._id.toString(),
+            },
+            rememberMe,
+        );
 
         /*
          * Store only the hash of the refresh token.

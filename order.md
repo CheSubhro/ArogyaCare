@@ -28,15 +28,15 @@
 [x] Duplicate Email Check
 [x] Duplicate Username Check
 ↓
-[ ] Zod Auth Validation
+[x] Zod Auth Validation
 ↓
-[ ] Registration API
+[x] Registration API
 ↓
-[ ] Registration UI
+[..] Registration UI
 ↓
-[ ] Login API
+[x] Login API
 ↓
-[ ] Login UI
+[..] Login UI
 ↓
 [ ] JWT Access Token
 ↓
@@ -48,7 +48,7 @@
 ↓
 [ ] Current User (/me)
 ↓
-[ ] Profile
+[..] Profile
 ↓
 [ ] Protected Routes
 ↓
@@ -77,28 +77,49 @@
 ## Authentication
 
 [x] Registration
-[ ] Login / Logout
-[ ] JWT
-[ ] Access + Refresh Token
-[ ] HttpOnly Cookie
-[ ] Password hashing
-[ ] Forgot/Reset Password
-[ ] Email verification
-[ ] Profile
-[ ] Role-based access
-[ ] Permission-based access
-[ ] Protected routes/API
-[ ] Admin user management
-[ ] Account status
-[ ] Login security
-[ ] Session/device management
-[ ] Audit logs
+[x] Login
+[x] Logout
+[x] JWT Access Token
+[x] Refresh Token
+[x] HttpOnly Cookie
+[x] Password Hashing
+[ ] Forgot Password
+[ ] Reset Password
+[ ] Email Verification
+[x] Current User
+[ ] Profile functionality
+[x] Protected API
+[x] RBAC
+[x] Permission System
+[ ] Admin User Management
+[ ] Login Security
+[ ] Session/Device Management
+[ ] Audit Logs
 [ ] 2FA
+
+## Authorization
+
+[x] Role Model
+[x] Permission Model
+[x] Permission Seed
+[x] Role Seed
+[x] requireAuth()
+[x] requireRole()
+[x] requirePermission()
+[ ] Permission-based API test
+[ ] User ↔ Role integration verification
 
 ## Database
 
 [x] User Model
-[ ] Session / Refresh Token Model
-[ ] Role Model
-[ ] Permission Model
+[x] Session / Refresh Token Model
+[x] Role Model
+[x] Permission Model
 [ ] Audit Log Model
+
+## Finalization
+
+[ ] Complete Auth UI integration
+[ ] Testing
+[ ] Security hardening
+[ ] Production security checklist

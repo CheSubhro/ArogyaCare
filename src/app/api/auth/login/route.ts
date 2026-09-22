@@ -3,8 +3,11 @@ import bcrypt from 'bcryptjs';
 
 import { connectDB } from '@/lib/db';
 import User from '@/models/User';
+import Session from '@/models/Session';
+
 import { loginSchema } from '@/lib/validations/auth';
-import { generateAccessToken } from '@/lib/jwt';
+import { generateAccessToken, generateRefreshToken } from '@/lib/jwt';
+import { createHash } from 'crypto';
 
 export async function POST(request: Request) {
     try {
@@ -25,7 +28,7 @@ export async function POST(request: Request) {
             );
         }
 
-        const { identifier, password } = validationResult.data;
+        const { identifier, password, rememberMe } = validationResult.data;
 
         const normalizedIdentifier = identifier.toLowerCase();
 
@@ -65,11 +68,36 @@ export async function POST(request: Request) {
             );
         }
 
-        // Generate JWT Access Token
+        /*
+         * Create temporary session first.
+         * We need the session ID inside the refresh token.
+         */
+        const session = await Session.create({
+            userId: user._id,
+            refreshTokenHash: 'temporary',
+            userAgent: request.headers.get('user-agent') || undefined,
+            ipAddress:
+                request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+                request.headers.get('x-real-ip') ||
+                undefined,
+            expiresAt: new Date(Date.now() + (rememberMe ? 30 : 7) * 24 * 60 * 60 * 1000),
+        });
+
         const accessToken = generateAccessToken({
             userId: user._id.toString(),
             role: user.role,
         });
+
+        const refreshToken = generateRefreshToken({
+            userId: user._id.toString(),
+            sessionId: session._id.toString(),
+        });
+
+        const refreshTokenHash = createHash('sha256').update(refreshToken).digest('hex');
+
+        session.refreshTokenHash = refreshTokenHash;
+
+        await session.save();
 
         const response = NextResponse.json(
             {
@@ -93,6 +121,14 @@ export async function POST(request: Request) {
             sameSite: 'lax',
             path: '/',
             maxAge: 15 * 60,
+        });
+
+        response.cookies.set('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: (rememberMe ? 30 : 7) * 24 * 60 * 60,
         });
 
         return response;

@@ -161,3 +161,19 @@
    ├── Billing
    ├── Reports
    └── Settings
+
+   1. Patients
+   ↓
+2. Doctors / Referrals
+   ↓
+3. Test Categories
+   ↓
+4. Tests
+   ↓
+5. Lab Samples
+   ↓
+6. Billing
+   ↓
+7. Reports
+   ↓
+8. Settings

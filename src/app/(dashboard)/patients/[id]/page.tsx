@@ -8,6 +8,7 @@ import Alert from '@/components/ui/Alert';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import Modal from '@/components/ui/Modal';
 import Spinner from '@/components/ui/Spinner';
 
 interface Patient {
@@ -36,16 +37,22 @@ export default function ViewPatientPage() {
     const patientId = params.id as string;
 
     const [patient, setPatient] = useState<Patient | null>(null);
-
     const [loading, setLoading] = useState(true);
 
     const [error, setError] = useState('');
+    const [statusError, setStatusError] = useState('');
 
     const [statusUpdating, setStatusUpdating] = useState(false);
 
     const [showStatusModal, setShowStatusModal] = useState(false);
 
+    const [pendingStatus, setPendingStatus] = useState<'ACTIVE' | 'INACTIVE' | null>(null);
+
     useEffect(() => {
+        if (!patientId) {
+            return;
+        }
+
         const loadPatient = async () => {
             try {
                 setLoading(true);
@@ -59,14 +66,13 @@ export default function ViewPatientPage() {
 
                 const data = await response.json();
 
+                if (response.status === 401) {
+                    router.replace('/login');
+                    return;
+                }
+
                 if (!response.ok) {
-                    if (response.status === 401) {
-                        router.replace('/login');
-                        return;
-                    }
-
                     setError(data.message || 'Unable to load patient details.');
-
                     return;
                 }
 
@@ -78,9 +84,7 @@ export default function ViewPatientPage() {
             }
         };
 
-        if (patientId) {
-            loadPatient();
-        }
+        loadPatient();
     }, [patientId, router]);
 
     const formatDate = (date?: string) => {
@@ -120,16 +124,29 @@ export default function ViewPatientPage() {
         }
     };
 
-    const handleStatusChange = async () => {
-        if (!patient) {
+    const handleStatusChange = (newStatus: 'ACTIVE' | 'INACTIVE') => {
+        setStatusError('');
+        setPendingStatus(newStatus);
+        setShowStatusModal(true);
+    };
+
+    const closeStatusModal = () => {
+        if (statusUpdating) {
+            return;
+        }
+
+        setShowStatusModal(false);
+        setPendingStatus(null);
+    };
+
+    const confirmStatusChange = async () => {
+        if (!patient || !pendingStatus) {
             return;
         }
 
         try {
             setStatusUpdating(true);
-            setError('');
-
-            const newStatus = patient.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+            setStatusError('');
 
             const response = await fetch(`/api/patients/${patientId}`, {
                 method: 'PATCH',
@@ -138,20 +155,19 @@ export default function ViewPatientPage() {
                 },
                 credentials: 'include',
                 body: JSON.stringify({
-                    status: newStatus,
+                    status: pendingStatus,
                 }),
             });
 
             const data = await response.json();
 
+            if (response.status === 401) {
+                router.replace('/login');
+                return;
+            }
+
             if (!response.ok) {
-                if (response.status === 401) {
-                    router.replace('/login');
-                    return;
-                }
-
-                setError(data.message || 'Unable to update patient status.');
-
+                setStatusError(data.message || 'Unable to update patient status.');
                 return;
             }
 
@@ -160,14 +176,15 @@ export default function ViewPatientPage() {
                     ? {
                           ...previous,
                           status: data.patient.status,
-                          updatedAt: data.patient.updatedAt,
+                          updatedAt: data.patient.updatedAt || previous.updatedAt,
                       }
                     : previous,
             );
 
             setShowStatusModal(false);
+            setPendingStatus(null);
         } catch {
-            setError('Unable to connect to the server. Please try again.');
+            setStatusError('Unable to connect to the server. Please try again.');
         } finally {
             setStatusUpdating(false);
         }
@@ -175,7 +192,7 @@ export default function ViewPatientPage() {
 
     if (loading) {
         return (
-            <div className="flex min-h-96 items-center justify-center">
+            <div className="flex min-h-[400px] items-center justify-center">
                 <Spinner />
             </div>
         );
@@ -183,8 +200,8 @@ export default function ViewPatientPage() {
 
     if (error) {
         return (
-            <div>
-                <div className="mb-6">
+            <div className="space-y-4">
+                <div>
                     <Link
                         href="/patients"
                         className="text-sm font-medium text-[var(--color-primary)] hover:underline"
@@ -200,15 +217,13 @@ export default function ViewPatientPage() {
 
     if (!patient) {
         return (
-            <div>
-                <div className="mb-6">
-                    <Link
-                        href="/patients"
-                        className="text-sm font-medium text-[var(--color-primary)] hover:underline"
-                    >
-                        ← Back to Patients
-                    </Link>
-                </div>
+            <div className="space-y-4">
+                <Link
+                    href="/patients"
+                    className="text-sm font-medium text-[var(--color-primary)] hover:underline"
+                >
+                    ← Back to Patients
+                </Link>
 
                 <Alert variant="warning">Patient record not found.</Alert>
             </div>
@@ -216,28 +231,18 @@ export default function ViewPatientPage() {
     }
 
     return (
-        <div>
+        <div className="mx-auto max-w-6xl space-y-6">
             {/* Header */}
-            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <Link
                         href="/patients"
-                        className="text-sm font-medium text-[var(--color-primary)] hover:underline"
+                        className="mb-2 inline-block text-sm font-medium text-[var(--color-primary)] hover:underline"
                     >
                         ← Back to Patients
                     </Link>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-3">
-                        <h1 className="text-2xl font-bold text-[var(--color-text)]">
-                            Patient Details
-                        </h1>
-
-                        {patient.status === 'ACTIVE' ? (
-                            <Badge variant="success">Active</Badge>
-                        ) : (
-                            <Badge variant="warning">Inactive</Badge>
-                        )}
-                    </div>
+                    <h1 className="text-2xl font-bold text-[var(--color-text)]">Patient Details</h1>
 
                     <p className="mt-1 text-sm text-[var(--color-text-muted)]">
                         Patient ID:{' '}
@@ -248,29 +253,72 @@ export default function ViewPatientPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => router.push('/patients')}
+                    >
+                        Back
+                    </Button>
+
                     <Link href={`/patients/${patient._id}/edit`}>
                         <Button type="button">Edit Patient</Button>
                     </Link>
-
-                    {patient.status === 'ACTIVE' ? (
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => setShowStatusModal(true)}
-                        >
-                            Deactivate
-                        </Button>
-                    ) : (
-                        <Button type="button" onClick={() => setShowStatusModal(true)}>
-                            Activate
-                        </Button>
-                    )}
                 </div>
             </div>
 
+            {/* Patient Status */}
+            <Card>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 className="text-base font-semibold text-[var(--color-text)]">
+                            Patient Status
+                        </h2>
+
+                        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                            Control whether this patient is currently active.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Badge variant={patient.status === 'ACTIVE' ? 'success' : 'danger'}>
+                            {patient.status}
+                        </Badge>
+
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() =>
+                                handleStatusChange(
+                                    patient.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
+                                )
+                            }
+                            disabled={statusUpdating}
+                        >
+                            {statusUpdating ? (
+                                <span className="flex items-center gap-2">
+                                    <Spinner size="sm" />
+                                    Updating...
+                                </span>
+                            ) : patient.status === 'ACTIVE' ? (
+                                'Deactivate Patient'
+                            ) : (
+                                'Activate Patient'
+                            )}
+                        </Button>
+                    </div>
+                </div>
+
+                {statusError && (
+                    <div className="mt-4">
+                        <Alert variant="danger">{statusError}</Alert>
+                    </div>
+                )}
+            </Card>
+
             {/* Personal Information */}
-            <Card className="mb-6">
-                <div className="border-b border-[var(--color-border)] px-6 py-4">
+            <Card>
+                <div className="border-b border-[var(--color-border)] pb-4">
                     <h2 className="text-lg font-semibold text-[var(--color-text)]">
                         Personal Information
                     </h2>
@@ -280,7 +328,7 @@ export default function ViewPatientPage() {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 gap-6 p-6 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-6 pt-6 sm:grid-cols-2 lg:grid-cols-3">
                     <div>
                         <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
                             Patient ID
@@ -364,8 +412,8 @@ export default function ViewPatientPage() {
             </Card>
 
             {/* Address Information */}
-            <Card className="mb-6">
-                <div className="border-b border-[var(--color-border)] px-6 py-4">
+            <Card>
+                <div className="border-b border-[var(--color-border)] pb-4">
                     <h2 className="text-lg font-semibold text-[var(--color-text)]">
                         Address Information
                     </h2>
@@ -375,7 +423,7 @@ export default function ViewPatientPage() {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 gap-6 p-6 sm:grid-cols-2">
+                <div className="grid gap-6 pt-6 sm:grid-cols-2">
                     <div className="sm:col-span-2">
                         <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
                             Address
@@ -399,8 +447,8 @@ export default function ViewPatientPage() {
             </Card>
 
             {/* Emergency Contact */}
-            <Card className="mb-6">
-                <div className="border-b border-[var(--color-border)] px-6 py-4">
+            <Card>
+                <div className="border-b border-[var(--color-border)] pb-4">
                     <h2 className="text-lg font-semibold text-[var(--color-text)]">
                         Emergency Contact
                     </h2>
@@ -410,7 +458,7 @@ export default function ViewPatientPage() {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 gap-6 p-6 sm:grid-cols-2">
+                <div className="grid gap-6 pt-6 sm:grid-cols-2">
                     <div>
                         <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
                             Contact Name
@@ -435,7 +483,7 @@ export default function ViewPatientPage() {
 
             {/* Record Information */}
             <Card>
-                <div className="border-b border-[var(--color-border)] px-6 py-4">
+                <div className="border-b border-[var(--color-border)] pb-4">
                     <h2 className="text-lg font-semibold text-[var(--color-text)]">
                         Record Information
                     </h2>
@@ -445,7 +493,7 @@ export default function ViewPatientPage() {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 gap-6 p-6 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-6 pt-6 sm:grid-cols-2 lg:grid-cols-3">
                     <div>
                         <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
                             Status
@@ -481,50 +529,41 @@ export default function ViewPatientPage() {
                     </div>
                 </div>
             </Card>
-            {showStatusModal && patient && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                    <div className="w-full max-w-md rounded-xl bg-[var(--color-surface)] shadow-xl">
-                        <div className="border-b border-[var(--color-border)] px-6 py-4">
-                            <h2 className="text-lg font-semibold text-[var(--color-text)]">
-                                {patient.status === 'ACTIVE'
-                                    ? 'Deactivate Patient'
-                                    : 'Activate Patient'}
-                            </h2>
-                        </div>
 
-                        <div className="px-6 py-5">
-                            <p className="text-sm leading-6 text-[var(--color-text-muted)]">
-                                {patient.status === 'ACTIVE'
-                                    ? `Are you sure you want to deactivate ${patient.name}? The patient record will be retained, but the patient will be marked as inactive.`
-                                    : `Are you sure you want to activate ${patient.name}?`}
-                            </p>
-                        </div>
+            {/* Status Confirmation Modal */}
+            <Modal
+                open={showStatusModal}
+                onClose={closeStatusModal}
+                title={pendingStatus === 'INACTIVE' ? 'Deactivate Patient' : 'Activate Patient'}
+            >
+                <div className="space-y-4">
+                    <p className="text-sm leading-6 text-[var(--color-text-muted)]">
+                        {pendingStatus === 'INACTIVE'
+                            ? `Are you sure you want to deactivate ${patient.name}? The patient record will be retained, but the patient will be marked as inactive.`
+                            : `Are you sure you want to activate ${patient.name}?`}
+                    </p>
 
-                        <div className="flex justify-end gap-2 border-t border-[var(--color-border)] px-6 py-4">
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => setShowStatusModal(false)}
-                                disabled={statusUpdating}
-                            >
-                                Cancel
-                            </Button>
+                    <div className="flex justify-end gap-3">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={closeStatusModal}
+                            disabled={statusUpdating}
+                        >
+                            Cancel
+                        </Button>
 
-                            <Button
-                                type="button"
-                                onClick={handleStatusChange}
-                                disabled={statusUpdating}
-                            >
-                                {statusUpdating
-                                    ? 'Updating...'
-                                    : patient.status === 'ACTIVE'
-                                      ? 'Deactivate'
-                                      : 'Activate'}
-                            </Button>
-                        </div>
+                        <Button
+                            type="button"
+                            variant={pendingStatus === 'INACTIVE' ? 'danger' : 'primary'}
+                            onClick={confirmStatusChange}
+                            loading={statusUpdating}
+                        >
+                            {pendingStatus === 'INACTIVE' ? 'Deactivate' : 'Activate'}
+                        </Button>
                     </div>
                 </div>
-            )}
+            </Modal>
         </div>
     );
 }

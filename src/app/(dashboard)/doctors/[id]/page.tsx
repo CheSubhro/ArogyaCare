@@ -9,6 +9,7 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Spinner from '@/components/ui/Spinner';
+import Modal from '@/components/ui/Modal';
 
 interface Doctor {
     _id: string;
@@ -68,7 +69,11 @@ export default function DoctorDetailsPage() {
 
     const [doctor, setDoctor] = useState<Doctor | null>(null);
     const [loading, setLoading] = useState(true);
+    const [statusUpdating, setStatusUpdating] = useState(false);
     const [error, setError] = useState('');
+    const [statusError, setStatusError] = useState('');
+    const [showStatusModal, setShowStatusModal] = useState(false);
+    const [pendingStatus, setPendingStatus] = useState<'ACTIVE' | 'INACTIVE' | null>(null);
 
     useEffect(() => {
         if (!doctorId) return;
@@ -106,6 +111,57 @@ export default function DoctorDetailsPage() {
 
         loadDoctor();
     }, [doctorId, router]);
+
+    const handleStatusChange = (newStatus: 'ACTIVE' | 'INACTIVE') => {
+        setPendingStatus(newStatus);
+        setShowStatusModal(true);
+    };
+
+    const confirmStatusChange = async () => {
+        if (!pendingStatus) {
+            return;
+        }
+
+        setStatusUpdating(true);
+        setStatusError('');
+
+        try {
+            const response = await fetch(`/api/doctors/${doctorId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    status: pendingStatus,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setStatusError(data.message || 'Failed to update doctor status');
+                return;
+            }
+
+            setDoctor((currentDoctor) =>
+                currentDoctor
+                    ? {
+                          ...currentDoctor,
+                          status: pendingStatus,
+                          updatedAt: data.doctor?.updatedAt || currentDoctor.updatedAt,
+                      }
+                    : currentDoctor,
+            );
+
+            setShowStatusModal(false);
+            setPendingStatus(null);
+        } catch {
+            setStatusError('Something went wrong. Please try again.');
+        } finally {
+            setStatusUpdating(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -168,7 +224,7 @@ export default function DoctorDetailsPage() {
                     </p>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     <Button
                         type="button"
                         variant="secondary"
@@ -183,26 +239,65 @@ export default function DoctorDetailsPage() {
                 </div>
             </div>
 
+            {/* Status Action */}
+            <Card>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 className="text-base font-semibold text-[var(--color-text)]">
+                            Doctor Status
+                        </h2>
+
+                        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                            Control whether this doctor/referral is currently active.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Badge variant={doctor.status === 'ACTIVE' ? 'success' : 'danger'}>
+                            {doctor.status}
+                        </Badge>
+
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() =>
+                                handleStatusChange(
+                                    doctor.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
+                                )
+                            }
+                            disabled={statusUpdating}
+                        >
+                            {statusUpdating ? (
+                                <span className="flex items-center gap-2">
+                                    <Spinner size="sm" />
+                                    Updating...
+                                </span>
+                            ) : doctor.status === 'ACTIVE' ? (
+                                'Deactivate Doctor'
+                            ) : (
+                                'Activate Doctor'
+                            )}
+                        </Button>
+                    </div>
+                </div>
+
+                {statusError && (
+                    <div className="mt-4">
+                        <Alert variant="danger">{statusError}</Alert>
+                    </div>
+                )}
+            </Card>
+
             {/* Basic Information */}
             <Card>
                 <div className="border-b border-[var(--color-border)] pb-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <h2 className="text-lg font-semibold text-[var(--color-text)]">
-                                Basic Information
-                            </h2>
+                    <h2 className="text-lg font-semibold text-[var(--color-text)]">
+                        Basic Information
+                    </h2>
 
-                            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                                Doctor identification and professional details.
-                            </p>
-                        </div>
-
-                        <div>
-                            <Badge variant={doctor.status === 'ACTIVE' ? 'success' : 'danger'}>
-                                {doctor.status}
-                            </Badge>
-                        </div>
-                    </div>
+                    <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                        Doctor identification and professional details.
+                    </p>
                 </div>
 
                 <div className="grid gap-6 pt-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -275,6 +370,49 @@ export default function DoctorDetailsPage() {
                     <DetailItem label="Last Updated" value={formatDate(doctor.updatedAt)} />
                 </div>
             </Card>
+            <Modal
+                open={showStatusModal}
+                onClose={() => {
+                    if (!statusUpdating) {
+                        setShowStatusModal(false);
+                        setPendingStatus(null);
+                    }
+                }}
+                title={pendingStatus === 'INACTIVE' ? 'Deactivate Doctor' : 'Activate Doctor'}
+            >
+                <div className="space-y-4">
+                    <p className="text-sm text-[var(--color-text-muted)]">
+                        {pendingStatus === 'INACTIVE'
+                            ? 'Are you sure you want to deactivate this doctor?'
+                            : 'Are you sure you want to activate this doctor?'}
+                    </p>
+
+                    <div className="flex justify-end gap-3">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => {
+                                if (!statusUpdating) {
+                                    setShowStatusModal(false);
+                                    setPendingStatus(null);
+                                }
+                            }}
+                            disabled={statusUpdating}
+                        >
+                            Cancel
+                        </Button>
+
+                        <Button
+                            type="button"
+                            variant={pendingStatus === 'INACTIVE' ? 'danger' : 'primary'}
+                            onClick={confirmStatusChange}
+                            loading={statusUpdating}
+                        >
+                            {pendingStatus === 'INACTIVE' ? 'Deactivate' : 'Activate'}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

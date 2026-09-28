@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 import { connectDB } from '@/lib/db';
 import { requirePermission } from '@/lib/auth';
-
 import User from '@/models/User';
 import Role from '@/models/Role';
-
 import { updateUserSchema } from '@/lib/validations/user';
 
 interface RouteContext {
@@ -16,19 +14,42 @@ interface RouteContext {
     }>;
 }
 
+function isValidObjectId(id: string) {
+    return mongoose.Types.ObjectId.isValid(id);
+}
+
+function sanitizeUser(user: any) {
+    return {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        username: user.username,
+        mobileNumber: user.mobileNumber,
+        role: user.role,
+        accountStatus: user.accountStatus,
+        emailVerified: user.emailVerified,
+        lastLoginAt: user.lastLoginAt,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+    };
+}
+
+/**
+ * GET USER
+ */
 export async function GET(request: Request, context: RouteContext) {
     try {
-        await connectDB();
-
         const permissionResult = await requirePermission(request, 'users.view');
 
         if (!permissionResult.success) {
             return permissionResult.response;
         }
 
+        await connectDB();
+
         const { id } = await context.params;
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (!isValidObjectId(id)) {
             return NextResponse.json(
                 {
                     success: false,
@@ -38,11 +59,9 @@ export async function GET(request: Request, context: RouteContext) {
             );
         }
 
-        const user = await User.findById(id)
-            .select(
-                'name email username mobileNumber role accountStatus emailVerified lastLoginAt createdAt updatedAt',
-            )
-            .lean();
+        const user = await User.findById(id).select(
+            'name email username mobileNumber role accountStatus emailVerified lastLoginAt createdAt updatedAt',
+        );
 
         if (!user) {
             return NextResponse.json(
@@ -56,7 +75,7 @@ export async function GET(request: Request, context: RouteContext) {
 
         return NextResponse.json({
             success: true,
-            user,
+            user: sanitizeUser(user),
         });
     } catch (error) {
         console.error('Get user error:', error);
@@ -71,25 +90,42 @@ export async function GET(request: Request, context: RouteContext) {
     }
 }
 
+/**
+ * UPDATE USER
+ */
 export async function PATCH(request: Request, context: RouteContext) {
     try {
-        await connectDB();
-
         const permissionResult = await requirePermission(request, 'users.edit');
 
         if (!permissionResult.success) {
             return permissionResult.response;
         }
 
+        await connectDB();
+
         const { id } = await context.params;
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (!isValidObjectId(id)) {
             return NextResponse.json(
                 {
                     success: false,
                     message: 'Invalid user ID',
                 },
                 { status: 400 },
+            );
+        }
+
+        const targetUser = await User.findById(id).select(
+            '+password +failedLoginAttempts +lockedUntil',
+        );
+
+        if (!targetUser) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    message: 'User not found',
+                },
+                { status: 404 },
             );
         }
 
@@ -108,28 +144,123 @@ export async function PATCH(request: Request, context: RouteContext) {
             );
         }
 
-        const existingUser = await User.findById(id);
+        const data = validationResult.data;
 
-        if (!existingUser) {
+        const isSelf = targetUser._id.toString() === permissionResult.user.userId;
+
+        /*
+         * ----------------------------------------------------
+         * SECURITY RULE 1
+         * User cannot deactivate their own account.
+         * ----------------------------------------------------
+         */
+        if (isSelf && data.accountStatus === 'INACTIVE') {
             return NextResponse.json(
                 {
                     success: false,
-                    message: 'User not found',
+                    message: 'You cannot deactivate your own account',
                 },
-                { status: 404 },
+                { status: 403 },
             );
         }
 
-        const { name, email, username, mobileNumber, role, accountStatus, password } =
-            validationResult.data;
+        /*
+         * ----------------------------------------------------
+         * SECURITY RULE 2
+         * User cannot change their own role.
+         * ----------------------------------------------------
+         */
+        if (isSelf && data.role && data.role !== targetUser.role) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    message: 'You cannot change your own role',
+                },
+                { status: 403 },
+            );
+        }
 
-        if (email && email !== existingUser.email) {
-            const emailExists = await User.findOne({
-                email,
-                _id: { $ne: id },
+        /*
+         * ----------------------------------------------------
+         * SECURITY RULE 3
+         * SUPER_ADMIN cannot be deactivated by another
+         * ordinary administrator.
+         *
+         * Only SUPER_ADMIN can manage another SUPER_ADMIN.
+         * ----------------------------------------------------
+         */
+        if (targetUser.role === 'SUPER_ADMIN' && permissionResult.user.role !== 'SUPER_ADMIN') {
+            if (data.role && data.role !== 'SUPER_ADMIN') {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        message: 'Only a SUPER_ADMIN can change the role of a SUPER_ADMIN',
+                    },
+                    { status: 403 },
+                );
+            }
+
+            if (data.accountStatus && data.accountStatus !== 'ACTIVE') {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        message: 'Only a SUPER_ADMIN can deactivate a SUPER_ADMIN account',
+                    },
+                    { status: 403 },
+                );
+            }
+
+            if (data.password) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        message: 'Only a SUPER_ADMIN can change the password of a SUPER_ADMIN',
+                    },
+                    { status: 403 },
+                );
+            }
+        }
+
+        /*
+         * ----------------------------------------------------
+         * SECURITY RULE 4
+         * Prevent the last active SUPER_ADMIN from being
+         * deactivated or demoted.
+         * ----------------------------------------------------
+         */
+        if (
+            targetUser.role === 'SUPER_ADMIN' &&
+            permissionResult.user.role === 'SUPER_ADMIN' &&
+            (data.accountStatus === 'INACTIVE' || (data.role && data.role !== 'SUPER_ADMIN'))
+        ) {
+            const activeSuperAdmins = await User.countDocuments({
+                role: 'SUPER_ADMIN',
+                accountStatus: 'ACTIVE',
             });
 
-            if (emailExists) {
+            if (activeSuperAdmins <= 1) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        message: 'The last active SUPER_ADMIN cannot be deactivated or demoted',
+                    },
+                    { status: 403 },
+                );
+            }
+        }
+
+        /*
+         * ----------------------------------------------------
+         * EMAIL DUPLICATE CHECK
+         * ----------------------------------------------------
+         */
+        if (data.email && data.email !== targetUser.email) {
+            const existingEmail = await User.findOne({
+                email: data.email,
+                _id: { $ne: targetUser._id },
+            });
+
+            if (existingEmail) {
                 return NextResponse.json(
                     {
                         success: false,
@@ -140,13 +271,18 @@ export async function PATCH(request: Request, context: RouteContext) {
             }
         }
 
-        if (username && username !== existingUser.username) {
-            const usernameExists = await User.findOne({
-                username,
-                _id: { $ne: id },
+        /*
+         * ----------------------------------------------------
+         * USERNAME DUPLICATE CHECK
+         * ----------------------------------------------------
+         */
+        if (data.username && data.username !== targetUser.username) {
+            const existingUsername = await User.findOne({
+                username: data.username,
+                _id: { $ne: targetUser._id },
             });
 
-            if (usernameExists) {
+            if (existingUsername) {
                 return NextResponse.json(
                     {
                         success: false,
@@ -157,13 +293,18 @@ export async function PATCH(request: Request, context: RouteContext) {
             }
         }
 
-        if (role && role !== existingUser.role) {
-            const selectedRole = await Role.findOne({
-                name: role,
+        /*
+         * ----------------------------------------------------
+         * ROLE VALIDATION
+         * ----------------------------------------------------
+         */
+        if (data.role) {
+            const role = await Role.findOne({
+                name: data.role,
                 isActive: true,
             });
 
-            if (!selectedRole) {
+            if (!role) {
                 return NextResponse.json(
                     {
                         success: false,
@@ -174,54 +315,80 @@ export async function PATCH(request: Request, context: RouteContext) {
             }
         }
 
-        if (name !== undefined) {
-            existingUser.name = name;
+        /*
+         * ----------------------------------------------------
+         * UPDATE BASIC FIELDS
+         * ----------------------------------------------------
+         */
+        if (data.name !== undefined) {
+            targetUser.name = data.name;
         }
 
-        if (email !== undefined) {
-            existingUser.email = email;
+        if (data.email !== undefined) {
+            targetUser.email = data.email;
         }
 
-        if (username !== undefined) {
-            existingUser.username = username || undefined;
+        if (data.username !== undefined) {
+            targetUser.username = data.username || undefined;
         }
 
-        if (mobileNumber !== undefined) {
-            existingUser.mobileNumber = mobileNumber || undefined;
+        if (data.mobileNumber !== undefined) {
+            targetUser.mobileNumber = data.mobileNumber || undefined;
         }
 
-        if (role !== undefined) {
-            existingUser.role = role;
+        if (data.role !== undefined) {
+            targetUser.role = data.role;
         }
 
-        if (accountStatus !== undefined) {
-            existingUser.accountStatus = accountStatus;
+        if (data.accountStatus !== undefined) {
+            targetUser.accountStatus = data.accountStatus;
         }
 
-        if (password) {
-            existingUser.password = await bcrypt.hash(password, 12);
+        /*
+         * ----------------------------------------------------
+         * PASSWORD CHANGE
+         * ----------------------------------------------------
+         */
+        if (data.password) {
+            targetUser.password = await bcrypt.hash(data.password, 12);
+
+            /*
+             * Reset login security counters after an
+             * administrator changes the password.
+             */
+            targetUser.failedLoginAttempts = 0;
+            targetUser.lockedUntil = undefined;
         }
 
-        await existingUser.save();
+        await targetUser.save();
 
         return NextResponse.json({
             success: true,
             message: 'User updated successfully',
-            user: {
-                id: existingUser._id,
-                name: existingUser.name,
-                email: existingUser.email,
-                username: existingUser.username,
-                mobileNumber: existingUser.mobileNumber,
-                role: existingUser.role,
-                accountStatus: existingUser.accountStatus,
-                lastLoginAt: existingUser.lastLoginAt,
-                createdAt: existingUser.createdAt,
-                updatedAt: existingUser.updatedAt,
-            },
+            user: sanitizeUser(targetUser),
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Update user error:', error);
+
+        /*
+         * Handle MongoDB unique index race conditions.
+         */
+        if (error?.code === 11000) {
+            const duplicateField = Object.keys(error.keyPattern || {})[0];
+
+            return NextResponse.json(
+                {
+                    success: false,
+                    message:
+                        duplicateField === 'email'
+                            ? 'Email is already registered'
+                            : duplicateField === 'username'
+                              ? 'Username is already taken'
+                              : 'Duplicate value already exists',
+                },
+                { status: 409 },
+            );
+        }
 
         return NextResponse.json(
             {

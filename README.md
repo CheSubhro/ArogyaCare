@@ -1,3 +1,7 @@
+*ArogyaCare Diagnostics*
+
+A full-stack diagnostic center management platform built with Next.js, TypeScript, MongoDB, and Tailwind CSS. ArogyaCare Diagnostics streamlines patients, doctors, tests, lab samples, billing, reports, settings, authentication, RBAC, and secure user management in one scalable system.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

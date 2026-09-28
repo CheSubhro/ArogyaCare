@@ -246,6 +246,9 @@ export default function ReportsPage() {
                     <Link href="/reports/tests">
                         <Button type="button">Test Reports</Button>
                     </Link>
+                    <Link href="/reports/doctors">
+                        <Button type="button">Doctor Reports</Button>
+                    </Link>
                 </div>
             </div>
 

@@ -6,6 +6,7 @@ import { requireAuth } from '@/lib/auth';
 import Patient from '@/models/Patient';
 import Bill from '@/models/Bill';
 import LabSample from '@/models/LabSample';
+import Test from '@/models/Test';
 
 function getTodayRange() {
     const now = new Date();
@@ -129,14 +130,15 @@ export async function GET(request: Request) {
          */
         const recentSamplesPromise = LabSample.find({})
             .populate('patient', 'name patientId')
-            .populate('test', 'name code')
-            .select('sampleId patient test status collectionDateTime createdAt')
-            .sort({
-                collectionDateTime: -1,
+            .populate({
+                path: 'test',
+                select: 'name code',
+                model: Test,
             })
+            .select('sampleId patient test status collectionDateTime createdAt')
+            .sort({ collectionDateTime: -1 })
             .limit(5)
             .lean();
-
         /*
          * --------------------------------------------------
          * EXECUTE DATABASE OPERATIONS

@@ -1,3 +1,4 @@
+
 import mongoose, { Document, Model, Schema } from 'mongoose';
 
 export type BillStatus = 'DRAFT' | 'CONFIRMED' | 'CANCELLED';
@@ -16,30 +17,35 @@ export interface IBillItem {
     totalAmount: number;
 }
 
+export interface IBillPayment {
+    amount: number;
+    paymentMethod: PaymentMethod;
+    paymentDate: Date;
+    referenceNumber?: string;
+    receivedBy?: mongoose.Types.ObjectId | null;
+    notes?: string;
+}
+
 export interface IBill extends Document {
     billNumber: string;
-
     patient: mongoose.Types.ObjectId;
-
     doctor?: mongoose.Types.ObjectId | null;
 
     items: IBillItem[];
 
     subtotal: number;
-
     discountAmount: number;
-
     taxAmount: number;
-
     grandTotal: number;
 
     paidAmount: number;
-
     dueAmount: number;
 
     paymentStatus: PaymentStatus;
 
     paymentMethod?: PaymentMethod;
+
+    payments: IBillPayment[];
 
     billStatus: BillStatus;
 
@@ -48,7 +54,6 @@ export interface IBill extends Document {
     notes?: string;
 
     createdAt: Date;
-
     updatedAt: Date;
 }
 
@@ -103,6 +108,52 @@ const BillItemSchema = new Schema<IBillItem>(
     },
     {
         _id: false,
+    },
+);
+
+const BillPaymentSchema = new Schema<IBillPayment>(
+    {
+        amount: {
+            type: Number,
+            required: [true, 'Payment amount is required'],
+            min: [0.01, 'Payment amount must be greater than zero'],
+        },
+
+        paymentMethod: {
+            type: String,
+            required: [true, 'Payment method is required'],
+            enum: {
+                values: ['CASH', 'UPI', 'CARD', 'BANK_TRANSFER', 'OTHER'],
+                message: 'Invalid payment method',
+            },
+        },
+
+        paymentDate: {
+            type: Date,
+            required: true,
+            default: Date.now,
+        },
+
+        referenceNumber: {
+            type: String,
+            trim: true,
+            maxlength: [100, 'Reference number cannot exceed 100 characters'],
+        },
+
+        receivedBy: {
+            type: Schema.Types.ObjectId,
+            ref: 'User',
+            default: null,
+        },
+
+        notes: {
+            type: String,
+            trim: true,
+            maxlength: [500, 'Payment notes cannot exceed 500 characters'],
+        },
+    },
+    {
+        _id: true,
     },
 );
 
@@ -192,12 +243,29 @@ const BillSchema = new Schema<IBill>(
             index: true,
         },
 
+        /*
+         * Kept for backward compatibility.
+         *
+         * For new payment transactions,
+         * use the payments array below.
+         */
         paymentMethod: {
             type: String,
             enum: {
                 values: ['CASH', 'UPI', 'CARD', 'BANK_TRANSFER', 'OTHER'],
                 message: 'Invalid payment method',
             },
+        },
+
+        /*
+         * Complete payment history.
+         *
+         * A single bill can have multiple
+         * payment transactions.
+         */
+        payments: {
+            type: [BillPaymentSchema],
+            default: [],
         },
 
         billStatus: {

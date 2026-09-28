@@ -1,9 +1,11 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
 import Alert from '@/components/ui/Alert';
 import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Select from '@/components/ui/Select';
 import Spinner from '@/components/ui/Spinner';
@@ -143,6 +145,7 @@ export default function ReportsPage() {
     const [toDate, setToDate] = useState(initialRange.to);
 
     const [loading, setLoading] = useState(true);
+
     const [error, setError] = useState('');
 
     const loadReports = async (from = fromDate, to = toDate) => {
@@ -177,6 +180,7 @@ export default function ReportsPage() {
 
     useEffect(() => {
         loadReports();
+
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -219,12 +223,27 @@ export default function ReportsPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-[var(--color-text)]">Reports</h1>
+            {/* Header */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-[var(--color-text)]">Reports</h1>
 
-                <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                    View diagnostic center performance, billing and operational summaries.
-                </p>
+                    <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                        View diagnostic center performance, billing and operational summaries.
+                    </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                    <Link href="/reports/billing">
+                        <Button type="button" variant="primary">
+                            Billing Reports
+                        </Button>
+                    </Link>
+
+                    <Link href="/reports/patients">
+                        <Button type="button">Patient Reports</Button>
+                    </Link>
+                </div>
             </div>
 
             {error && (
@@ -233,6 +252,7 @@ export default function ReportsPage() {
                 </Alert>
             )}
 
+            {/* Report Period */}
             <Card>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div>
@@ -314,6 +334,7 @@ export default function ReportsPage() {
 
             {data && (
                 <>
+                    {/* Date Range */}
                     <div>
                         <p className="text-sm text-[var(--color-text-muted)]">
                             Showing reports from{' '}
@@ -327,6 +348,7 @@ export default function ReportsPage() {
                         </p>
                     </div>
 
+                    {/* Summary Cards */}
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         <Card>
                             <p className="text-sm text-[var(--color-text-muted)]">Total Patients</p>
@@ -377,6 +399,7 @@ export default function ReportsPage() {
                         </Card>
                     </div>
 
+                    {/* Billing Summary + Payment Collection */}
                     <div className="grid gap-6 lg:grid-cols-2">
                         <Card>
                             <div className="mb-5">
@@ -495,6 +518,7 @@ export default function ReportsPage() {
                         </Card>
                     </div>
 
+                    {/* Bill Status + Lab Operations */}
                     <div className="grid gap-6 lg:grid-cols-2">
                         <Card>
                             <div className="mb-5">
@@ -595,6 +619,7 @@ export default function ReportsPage() {
                         </Card>
                     </div>
 
+                    {/* Report Summary */}
                     <Card>
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>

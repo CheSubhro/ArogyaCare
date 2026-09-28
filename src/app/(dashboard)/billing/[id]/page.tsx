@@ -465,6 +465,12 @@ export default function BillDetailsPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                    <Link href={`/billing/${bill._id}/receipt`}>
+                        <Button type="button" variant="primary">
+                            View Receipt
+                        </Button>
+                    </Link>
+
                     <Badge variant={getBillStatusVariant(bill.billStatus)}>{bill.billStatus}</Badge>
 
                     <Badge variant={getPaymentStatusVariant(bill.paymentStatus)}>

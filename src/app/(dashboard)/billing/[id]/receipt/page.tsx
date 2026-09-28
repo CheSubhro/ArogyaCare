@@ -14,7 +14,6 @@ interface Patient {
     patientId: string;
     name: string;
     gender?: string;
-    dateOfBirth?: string;
     age?: number;
     mobile?: string;
     email?: string;
@@ -31,14 +30,9 @@ interface Doctor {
     specialization?: string;
     registrationNumber?: string;
     mobileNumber?: string;
-    email?: string;
     clinicName?: string;
     hospitalName?: string;
-    city?: string;
-    referralType?: string;
 }
-
-type PaymentMethod = 'CASH' | 'UPI' | 'CARD' | 'BANK_TRANSFER' | 'OTHER';
 
 interface BillTest {
     _id: string;
@@ -51,6 +45,22 @@ interface BillTest {
     modality?: string;
 }
 
+type PaymentMethod = 'CASH' | 'UPI' | 'CARD' | 'BANK_TRANSFER' | 'OTHER';
+
+interface BillPayment {
+    _id: string;
+    amount: number;
+    paymentMethod: PaymentMethod;
+    paymentDate: string;
+    referenceNumber?: string;
+    receivedBy?: {
+        _id: string;
+        name: string;
+        email: string;
+    } | null;
+    notes?: string;
+}
+
 interface BillItem {
     test: BillTest | string;
     testName: string;
@@ -59,20 +69,6 @@ interface BillItem {
     unitPrice: number;
     discountAmount: number;
     totalAmount: number;
-}
-
-interface BillPayment {
-    _id: string;
-    amount: number;
-    paymentMethod: PaymentMethod;
-    paymentDate: string;
-    referenceNumber?: string;
-    notes?: string;
-    receivedBy?: {
-        _id: string;
-        name: string;
-        email: string;
-    } | null;
 }
 
 interface Bill {
@@ -131,19 +127,14 @@ function formatPaymentMethod(method?: PaymentMethod) {
     switch (method) {
         case 'CASH':
             return 'Cash';
-
         case 'UPI':
             return 'UPI';
-
         case 'CARD':
             return 'Card';
-
         case 'BANK_TRANSFER':
             return 'Bank Transfer';
-
         case 'OTHER':
             return 'Other';
-
         default:
             return '-';
     }
@@ -153,13 +144,10 @@ function getPaymentStatusVariant(status: Bill['paymentStatus']) {
     switch (status) {
         case 'PAID':
             return 'success';
-
         case 'PARTIAL':
             return 'warning';
-
         case 'REFUNDED':
             return 'info';
-
         default:
             return 'danger';
     }
@@ -169,10 +157,8 @@ function getBillStatusVariant(status: Bill['billStatus']) {
     switch (status) {
         case 'CONFIRMED':
             return 'success';
-
         case 'DRAFT':
             return 'warning';
-
         default:
             return 'danger';
     }
@@ -180,13 +166,10 @@ function getBillStatusVariant(status: Bill['billStatus']) {
 
 export default function BillReceiptPage() {
     const params = useParams();
-
     const id = params.id as string;
 
     const [bill, setBill] = useState<Bill | null>(null);
-
     const [loading, setLoading] = useState(true);
-
     const [error, setError] = useState('');
 
     useEffect(() => {
@@ -238,7 +221,7 @@ export default function BillReceiptPage() {
             <div className="space-y-4">
                 <Link
                     href={`/billing/${id}`}
-                    className="text-sm font-medium text-[var(--color-primary)] hover:underline print:hidden"
+                    className="text-sm font-medium text-[var(--color-primary)] hover:underline"
                 >
                     ← Back to Bill
                 </Link>
@@ -255,7 +238,7 @@ export default function BillReceiptPage() {
             <div className="space-y-4">
                 <Link
                     href={`/billing/${id}`}
-                    className="text-sm font-medium text-[var(--color-primary)] hover:underline print:hidden"
+                    className="text-sm font-medium text-[var(--color-primary)] hover:underline"
                 >
                     ← Back to Bill
                 </Link>
@@ -268,15 +251,21 @@ export default function BillReceiptPage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-100 py-6 print:bg-white print:py-0">
+        <div className="min-h-screen">
             {/* Action Bar */}
-            <div className="mx-auto mb-4 flex max-w-[900px] items-center justify-between print:hidden">
-                <Link
-                    href={`/billing/${bill._id}`}
-                    className="text-sm font-medium text-[var(--color-primary)] hover:underline"
-                >
-                    ← Back to Bill
-                </Link>
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
+                <div>
+                    <Link
+                        href={`/billing/${bill._id}`}
+                        className="text-sm font-medium text-[var(--color-primary)] hover:underline"
+                    >
+                        ← Back to Bill
+                    </Link>
+
+                    <h1 className="mt-2 text-2xl font-bold text-[var(--color-text)]">
+                        Bill Receipt
+                    </h1>
+                </div>
 
                 <Button type="button" variant="primary" onClick={handlePrint}>
                     Print Receipt
@@ -284,120 +273,102 @@ export default function BillReceiptPage() {
             </div>
 
             {/* Receipt */}
-            <div className="mx-auto max-w-[900px] bg-white px-8 py-8 shadow-sm print:max-w-none print:px-0 print:py-0 print:shadow-none">
+            <div className="mx-auto max-w-[900px] bg-white shadow-sm print:max-w-none print:shadow-none">
                 {/* Header */}
-                <div className="border-b-2 border-[var(--color-primary)] pb-5">
+                <div className="border-b-2 border-[var(--color-primary)] px-6 py-6 sm:px-8">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                            <h1 className="text-2xl font-bold tracking-wide text-[var(--color-primary)]">
-                                ArogyaCare Diagnostics
-                            </h1>
+                            <h2 className="text-2xl font-bold tracking-wide text-[var(--color-primary)]">
+                                AROGYACARE DIAGNOSTICS
+                            </h2>
 
                             <p className="mt-1 text-sm font-medium text-[var(--color-text)]">
-                                Diagnostic & Healthcare Centre
+                                Diagnostic &amp; Healthcare Services
                             </p>
 
-                            <p className="mt-2 max-w-md text-xs leading-5 text-[var(--color-text-muted)]">
+                            <p className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">
                                 Pathology • Radiology • Cardiology • Neurology • Diagnostic
                                 Procedures
                             </p>
                         </div>
 
                         <div className="text-left sm:text-right">
-                            <h2 className="text-xl font-bold uppercase tracking-wide text-[var(--color-text)]">
-                                Bill Receipt
-                            </h2>
+                            <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                BILL / RECEIPT
+                            </p>
 
-                            <p className="mt-2 text-sm font-semibold text-[var(--color-primary)]">
+                            <p className="mt-1 text-xl font-bold text-[var(--color-text)]">
                                 {bill.billNumber}
                             </p>
 
-                            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                                {formatDate(bill.billDate)}
+                            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                                Date: {formatDate(bill.billDate)}
                             </p>
                         </div>
                     </div>
                 </div>
 
                 {/* Status */}
-                <div className="flex items-center justify-between border-b border-[var(--color-border)] py-4">
-                    <div>
-                        <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-                            Bill Status
-                        </p>
+                <div className="flex flex-wrap items-center gap-2 border-b border-[var(--color-border)] px-6 py-4 sm:px-8">
+                    <Badge variant={getBillStatusVariant(bill.billStatus)}>{bill.billStatus}</Badge>
 
-                        <div className="mt-1">
-                            <Badge variant={getBillStatusVariant(bill.billStatus)} size="sm">
-                                {bill.billStatus}
-                            </Badge>
-                        </div>
-                    </div>
-
-                    <div className="text-right">
-                        <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-                            Payment Status
-                        </p>
-
-                        <div className="mt-1">
-                            <Badge variant={getPaymentStatusVariant(bill.paymentStatus)} size="sm">
-                                {bill.paymentStatus}
-                            </Badge>
-                        </div>
-                    </div>
+                    <Badge variant={getPaymentStatusVariant(bill.paymentStatus)}>
+                        {bill.paymentStatus}
+                    </Badge>
                 </div>
 
                 {/* Patient & Doctor */}
-                <div className="grid grid-cols-1 gap-6 border-b border-[var(--color-border)] py-5 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-6 border-b border-[var(--color-border)] px-6 py-6 sm:px-8 md:grid-cols-2">
                     {/* Patient */}
                     <div>
-                        <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-[var(--color-text)]">
+                        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-primary)]">
                             Patient Information
                         </h3>
 
                         <div className="space-y-1.5 text-sm">
-                            <div className="flex">
+                            <div className="flex gap-2">
                                 <span className="w-28 text-[var(--color-text-muted)]">
                                     Patient ID
                                 </span>
-
                                 <span className="font-medium text-[var(--color-text)]">
                                     {bill.patient.patientId}
                                 </span>
                             </div>
 
-                            <div className="flex">
+                            <div className="flex gap-2">
                                 <span className="w-28 text-[var(--color-text-muted)]">Name</span>
-
                                 <span className="font-medium text-[var(--color-text)]">
                                     {bill.patient.name}
                                 </span>
                             </div>
 
-                            <div className="flex">
-                                <span className="w-28 text-[var(--color-text-muted)]">
-                                    Gender / Age
-                                </span>
-
+                            <div className="flex gap-2">
+                                <span className="w-28 text-[var(--color-text-muted)]">Gender</span>
                                 <span className="text-[var(--color-text)]">
-                                    {bill.patient.gender || '-'} / {bill.patient.age ?? '-'}
+                                    {bill.patient.gender || '-'}
                                 </span>
                             </div>
 
-                            <div className="flex">
-                                <span className="w-28 text-[var(--color-text-muted)]">Mobile</span>
+                            <div className="flex gap-2">
+                                <span className="w-28 text-[var(--color-text-muted)]">Age</span>
+                                <span className="text-[var(--color-text)]">
+                                    {bill.patient.age ?? '-'}
+                                </span>
+                            </div>
 
+                            <div className="flex gap-2">
+                                <span className="w-28 text-[var(--color-text-muted)]">Mobile</span>
                                 <span className="text-[var(--color-text)]">
                                     {bill.patient.mobile || '-'}
                                 </span>
                             </div>
 
-                            <div className="flex">
-                                <span className="w-28 text-[var(--color-text-muted)]">
-                                    Blood Group
-                                </span>
-
+                            <div className="flex gap-2">
+                                <span className="w-28 text-[var(--color-text-muted)]">Address</span>
                                 <span className="text-[var(--color-text)]">
-                                    {bill.patient.bloodGroup || '-'}
+                                    {[bill.patient.address, bill.patient.city]
+                                        .filter(Boolean)
+                                        .join(', ') || '-'}
                                 </span>
                             </div>
                         </div>
@@ -405,59 +376,54 @@ export default function BillReceiptPage() {
 
                     {/* Doctor */}
                     <div>
-                        <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-[var(--color-text)]">
+                        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-primary)]">
                             Referring Doctor
                         </h3>
 
                         {bill.doctor ? (
                             <div className="space-y-1.5 text-sm">
-                                <div className="flex">
+                                <div className="flex gap-2">
                                     <span className="w-28 text-[var(--color-text-muted)]">
                                         Doctor ID
                                     </span>
-
                                     <span className="font-medium text-[var(--color-text)]">
                                         {bill.doctor.doctorId}
                                     </span>
                                 </div>
 
-                                <div className="flex">
+                                <div className="flex gap-2">
                                     <span className="w-28 text-[var(--color-text-muted)]">
                                         Name
                                     </span>
-
                                     <span className="font-medium text-[var(--color-text)]">
                                         {bill.doctor.name}
                                     </span>
                                 </div>
 
-                                <div className="flex">
+                                <div className="flex gap-2">
                                     <span className="w-28 text-[var(--color-text-muted)]">
                                         Qualification
                                     </span>
-
                                     <span className="text-[var(--color-text)]">
                                         {bill.doctor.qualification || '-'}
                                     </span>
                                 </div>
 
-                                <div className="flex">
+                                <div className="flex gap-2">
                                     <span className="w-28 text-[var(--color-text-muted)]">
                                         Specialization
                                     </span>
-
                                     <span className="text-[var(--color-text)]">
                                         {bill.doctor.specialization || '-'}
                                     </span>
                                 </div>
 
-                                <div className="flex">
+                                <div className="flex gap-2">
                                     <span className="w-28 text-[var(--color-text-muted)]">
-                                        Mobile
+                                        Registration
                                     </span>
-
                                     <span className="text-[var(--color-text)]">
-                                        {bill.doctor.mobileNumber || '-'}
+                                        {bill.doctor.registrationNumber || '-'}
                                     </span>
                                 </div>
                             </div>
@@ -469,41 +435,41 @@ export default function BillReceiptPage() {
                     </div>
                 </div>
 
-                {/* Test Items */}
-                <div className="py-5">
-                    <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-[var(--color-text)]">
+                {/* Diagnostic Services */}
+                <div className="px-6 py-6 sm:px-8">
+                    <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[var(--color-primary)]">
                         Diagnostic Services
                     </h3>
 
-                    <div className="overflow-hidden rounded-lg border border-[var(--color-border)]">
-                        <table className="w-full text-sm">
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-[700px] text-sm">
                             <thead>
-                                <tr className="bg-slate-50">
-                                    <th className="border-b border-[var(--color-border)] px-3 py-2.5 text-left font-semibold text-[var(--color-text)]">
+                                <tr className="border-y border-[var(--color-border)] bg-slate-50">
+                                    <th className="px-3 py-3 text-left font-semibold text-[var(--color-text-muted)]">
                                         #
                                     </th>
 
-                                    <th className="border-b border-[var(--color-border)] px-3 py-2.5 text-left font-semibold text-[var(--color-text)]">
+                                    <th className="px-3 py-3 text-left font-semibold text-[var(--color-text-muted)]">
                                         Test / Service
                                     </th>
 
-                                    <th className="border-b border-[var(--color-border)] px-3 py-2.5 text-left font-semibold text-[var(--color-text)]">
+                                    <th className="px-3 py-3 text-left font-semibold text-[var(--color-text-muted)]">
                                         Code
                                     </th>
 
-                                    <th className="border-b border-[var(--color-border)] px-3 py-2.5 text-center font-semibold text-[var(--color-text)]">
+                                    <th className="px-3 py-3 text-center font-semibold text-[var(--color-text-muted)]">
                                         Qty
                                     </th>
 
-                                    <th className="border-b border-[var(--color-border)] px-3 py-2.5 text-right font-semibold text-[var(--color-text)]">
-                                        Rate
+                                    <th className="px-3 py-3 text-right font-semibold text-[var(--color-text-muted)]">
+                                        Unit Price
                                     </th>
 
-                                    <th className="border-b border-[var(--color-border)] px-3 py-2.5 text-right font-semibold text-[var(--color-text)]">
+                                    <th className="px-3 py-3 text-right font-semibold text-[var(--color-text-muted)]">
                                         Discount
                                     </th>
 
-                                    <th className="border-b border-[var(--color-border)] px-3 py-2.5 text-right font-semibold text-[var(--color-text)]">
+                                    <th className="px-3 py-3 text-right font-semibold text-[var(--color-text-muted)]">
                                         Amount
                                     </th>
                                 </tr>
@@ -511,42 +477,45 @@ export default function BillReceiptPage() {
 
                             <tbody>
                                 {bill.items.map((item, index) => (
-                                    <tr key={`${item.testCode}-${index}`}>
-                                        <td className="border-b border-[var(--color-border)] px-3 py-2.5 text-[var(--color-text-muted)]">
+                                    <tr
+                                        key={`${item.testCode}-${index}`}
+                                        className="border-b border-[var(--color-border)]"
+                                    >
+                                        <td className="px-3 py-3 text-[var(--color-text-muted)]">
                                             {index + 1}
                                         </td>
 
-                                        <td className="border-b border-[var(--color-border)] px-3 py-2.5">
+                                        <td className="px-3 py-3">
                                             <p className="font-medium text-[var(--color-text)]">
                                                 {item.testName}
                                             </p>
 
                                             {typeof item.test !== 'string' && item.test && (
-                                                <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                                                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                                                     {item.test.department ||
                                                         item.test.testType ||
-                                                        ''}
+                                                        '-'}
                                                 </p>
                                             )}
                                         </td>
 
-                                        <td className="border-b border-[var(--color-border)] px-3 py-2.5 text-[var(--color-text)]">
+                                        <td className="px-3 py-3 font-medium text-[var(--color-text)]">
                                             {item.testCode}
                                         </td>
 
-                                        <td className="border-b border-[var(--color-border)] px-3 py-2.5 text-center text-[var(--color-text)]">
+                                        <td className="px-3 py-3 text-center text-[var(--color-text)]">
                                             {item.quantity}
                                         </td>
 
-                                        <td className="border-b border-[var(--color-border)] px-3 py-2.5 text-right text-[var(--color-text)]">
+                                        <td className="px-3 py-3 text-right text-[var(--color-text)]">
                                             {formatCurrency(item.unitPrice)}
                                         </td>
 
-                                        <td className="border-b border-[var(--color-border)] px-3 py-2.5 text-right text-[var(--color-text)]">
+                                        <td className="px-3 py-3 text-right text-[var(--color-text)]">
                                             {formatCurrency(item.discountAmount)}
                                         </td>
 
-                                        <td className="border-b border-[var(--color-border)] px-3 py-2.5 text-right font-semibold text-[var(--color-text)]">
+                                        <td className="px-3 py-3 text-right font-semibold text-[var(--color-text)]">
                                             {formatCurrency(item.totalAmount)}
                                         </td>
                                     </tr>
@@ -557,56 +526,58 @@ export default function BillReceiptPage() {
                 </div>
 
                 {/* Financial Summary */}
-                <div className="flex justify-end border-b border-[var(--color-border)] pb-5">
-                    <div className="w-full max-w-sm space-y-2.5">
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="text-[var(--color-text-muted)]">Subtotal</span>
+                <div className="border-t border-[var(--color-border)] px-6 py-6 sm:px-8">
+                    <div className="ml-auto max-w-md space-y-3">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-[var(--color-text-muted)]">Subtotal</span>
 
-                            <span className="font-medium text-[var(--color-text)]">
+                            <span className="text-sm font-medium text-[var(--color-text)]">
                                 {formatCurrency(bill.subtotal)}
                             </span>
                         </div>
 
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="text-[var(--color-text-muted)]">Discount</span>
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-[var(--color-text-muted)]">Discount</span>
 
-                            <span className="font-medium text-red-600">
+                            <span className="text-sm font-medium text-[var(--color-danger)]">
                                 -{formatCurrency(bill.discountAmount)}
                             </span>
                         </div>
 
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="text-[var(--color-text-muted)]">Tax</span>
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-[var(--color-text-muted)]">Tax</span>
 
-                            <span className="font-medium text-[var(--color-text)]">
+                            <span className="text-sm font-medium text-[var(--color-text)]">
                                 {formatCurrency(bill.taxAmount)}
                             </span>
                         </div>
 
-                        <div className="border-t border-[var(--color-border)] pt-2.5">
+                        <div className="border-t border-[var(--color-border)] pt-3">
                             <div className="flex items-center justify-between">
-                                <span className="text-base font-bold text-[var(--color-text)]">
+                                <span className="text-base font-semibold text-[var(--color-text)]">
                                     Grand Total
                                 </span>
 
-                                <span className="text-lg font-bold text-[var(--color-primary)]">
+                                <span className="text-xl font-bold text-[var(--color-primary)]">
                                     {formatCurrency(bill.grandTotal)}
                                 </span>
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="text-[var(--color-text-muted)]">Paid</span>
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-[var(--color-text-muted)]">Paid</span>
 
-                            <span className="font-semibold text-green-600">
+                            <span className="text-sm font-semibold text-[var(--color-success)]">
                                 {formatCurrency(bill.paidAmount)}
                             </span>
                         </div>
 
-                        <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-2.5">
-                            <span className="font-semibold text-[var(--color-text)]">Due</span>
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-semibold text-[var(--color-text)]">
+                                Due
+                            </span>
 
-                            <span className="text-base font-bold text-red-600">
+                            <span className="text-base font-bold text-[var(--color-danger)]">
                                 {formatCurrency(bill.dueAmount)}
                             </span>
                         </div>
@@ -615,50 +586,61 @@ export default function BillReceiptPage() {
 
                 {/* Payment History */}
                 {bill.payments && bill.payments.length > 0 && (
-                    <div className="border-b border-[var(--color-border)] py-5">
-                        <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-[var(--color-text)]">
+                    <div className="border-t border-[var(--color-border)] px-6 py-6 sm:px-8">
+                        <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[var(--color-primary)]">
                             Payment History
                         </h3>
 
-                        <div className="overflow-hidden rounded-lg border border-[var(--color-border)]">
-                            <table className="w-full text-sm">
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[650px] text-sm">
                                 <thead>
-                                    <tr className="bg-slate-50">
-                                        <th className="border-b border-[var(--color-border)] px-3 py-2 text-left font-semibold text-[var(--color-text)]">
+                                    <tr className="border-y border-[var(--color-border)] bg-slate-50">
+                                        <th className="px-3 py-3 text-left font-semibold text-[var(--color-text-muted)]">
                                             Date
                                         </th>
 
-                                        <th className="border-b border-[var(--color-border)] px-3 py-2 text-left font-semibold text-[var(--color-text)]">
+                                        <th className="px-3 py-3 text-left font-semibold text-[var(--color-text-muted)]">
                                             Method
                                         </th>
 
-                                        <th className="border-b border-[var(--color-border)] px-3 py-2 text-right font-semibold text-[var(--color-text)]">
+                                        <th className="px-3 py-3 text-right font-semibold text-[var(--color-text-muted)]">
                                             Amount
                                         </th>
 
-                                        <th className="border-b border-[var(--color-border)] px-3 py-2 text-left font-semibold text-[var(--color-text)]">
+                                        <th className="px-3 py-3 text-left font-semibold text-[var(--color-text-muted)]">
                                             Reference
+                                        </th>
+
+                                        <th className="px-3 py-3 text-left font-semibold text-[var(--color-text-muted)]">
+                                            Received By
                                         </th>
                                     </tr>
                                 </thead>
 
                                 <tbody>
                                     {bill.payments.map((payment, index) => (
-                                        <tr key={payment._id || index}>
-                                            <td className="border-b border-[var(--color-border)] px-3 py-2 text-[var(--color-text)]">
+                                        <tr
+                                            key={payment._id || index}
+                                            className="border-b border-[var(--color-border)]"
+                                        >
+                                            <td className="px-3 py-3 text-[var(--color-text)]">
                                                 {formatDateTime(payment.paymentDate)}
                                             </td>
 
-                                            <td className="border-b border-[var(--color-border)] px-3 py-2 text-[var(--color-text)]">
+                                            <td className="px-3 py-3 text-[var(--color-text)]">
                                                 {formatPaymentMethod(payment.paymentMethod)}
                                             </td>
 
-                                            <td className="border-b border-[var(--color-border)] px-3 py-2 text-right font-semibold text-green-600">
+                                            <td className="px-3 py-3 text-right font-semibold text-[var(--color-success)]">
                                                 {formatCurrency(payment.amount)}
                                             </td>
 
-                                            <td className="border-b border-[var(--color-border)] px-3 py-2 text-[var(--color-text)]">
+                                            <td className="px-3 py-3 text-[var(--color-text)]">
                                                 {payment.referenceNumber || '-'}
+                                            </td>
+
+                                            <td className="px-3 py-3 text-[var(--color-text)]">
+                                                {payment.receivedBy?.name || '-'}
                                             </td>
                                         </tr>
                                     ))}
@@ -670,32 +652,34 @@ export default function BillReceiptPage() {
 
                 {/* Notes */}
                 {bill.notes && (
-                    <div className="border-b border-[var(--color-border)] py-5">
-                        <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--color-text)]">
+                    <div className="border-t border-[var(--color-border)] px-6 py-6 sm:px-8">
+                        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-primary)]">
                             Notes
                         </h3>
 
-                        <p className="whitespace-pre-wrap text-sm leading-6 text-[var(--color-text-muted)]">
-                            {bill.notes}
-                        </p>
+                        <div className="rounded-lg bg-slate-50 p-4">
+                            <p className="whitespace-pre-wrap text-sm leading-6 text-[var(--color-text)]">
+                                {bill.notes}
+                            </p>
+                        </div>
                     </div>
                 )}
 
                 {/* Footer */}
-                <div className="pt-6">
-                    <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+                <div className="border-t-2 border-[var(--color-primary)] px-6 py-6 sm:px-8">
+                    <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <p className="text-xs text-[var(--color-text-muted)]">
-                                Generated on {formatDateTime(new Date().toISOString())}
+                                This is a computer-generated bill/receipt.
                             </p>
 
                             <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                                This is a computer-generated bill receipt.
+                                Generated on {formatDateTime(new Date().toISOString())}
                             </p>
                         </div>
 
-                        <div className="text-left sm:text-right">
-                            <div className="mb-8 h-px w-48 bg-[var(--color-border)]" />
+                        <div className="w-48 text-center">
+                            <div className="mb-2 border-b border-[var(--color-text)]" />
 
                             <p className="text-xs font-medium text-[var(--color-text)]">
                                 Authorized Signature
@@ -703,9 +687,13 @@ export default function BillReceiptPage() {
                         </div>
                     </div>
 
-                    <div className="mt-6 border-t border-[var(--color-border)] pt-3 text-center">
-                        <p className="text-xs text-[var(--color-text-muted)]">
+                    <div className="mt-6 text-center">
+                        <p className="text-xs font-medium text-[var(--color-text)]">
                             Thank you for choosing ArogyaCare Diagnostics.
+                        </p>
+
+                        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                            Please retain this receipt for your records.
                         </p>
                     </div>
                 </div>

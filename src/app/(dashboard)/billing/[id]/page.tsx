@@ -1,16 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 import Alert from '@/components/ui/Alert';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import Modal from '@/components/ui/Modal';
 import Spinner from '@/components/ui/Spinner';
 
 interface Patient {
+    _id: string;
     patientId: string;
     name: string;
     gender?: string;
@@ -24,6 +26,7 @@ interface Patient {
 }
 
 interface Doctor {
+    _id: string;
     doctorId: string;
     name: string;
     qualification?: string;
@@ -80,16 +83,27 @@ interface Bill {
 }
 
 function formatCurrency(amount: number) {
-    return `₹${Number(amount || 0).toLocaleString('en-IN', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    })}`;
+    return `₹${amount.toFixed(2)}`;
 }
 
-function formatDateTime(value?: string) {
-    if (!value) return '-';
+function formatDate(dateString: string) {
+    if (!dateString) {
+        return '-';
+    }
 
-    return new Date(value).toLocaleString('en-IN', {
+    return new Date(dateString).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+    });
+}
+
+function formatDateTime(dateString: string) {
+    if (!dateString) {
+        return '-';
+    }
+
+    return new Date(dateString).toLocaleString('en-IN', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
@@ -127,9 +141,30 @@ function getBillStatusVariant(status: Bill['billStatus']) {
     }
 }
 
+function formatPaymentMethod(method?: Bill['paymentMethod']) {
+    switch (method) {
+        case 'CASH':
+            return 'Cash';
+
+        case 'UPI':
+            return 'UPI';
+
+        case 'CARD':
+            return 'Card';
+
+        case 'BANK_TRANSFER':
+            return 'Bank Transfer';
+
+        case 'OTHER':
+            return 'Other';
+
+        default:
+            return '-';
+    }
+}
+
 export default function BillDetailsPage() {
     const params = useParams();
-    const router = useRouter();
 
     const id = params.id as string;
 
@@ -138,6 +173,12 @@ export default function BillDetailsPage() {
     const [loading, setLoading] = useState(true);
 
     const [error, setError] = useState('');
+
+    const [statusAction, setStatusAction] = useState<'CONFIRMED' | 'CANCELLED' | null>(null);
+
+    const [statusUpdating, setStatusUpdating] = useState(false);
+
+    const [statusError, setStatusError] = useState('');
 
     useEffect(() => {
         const loadBill = async () => {
@@ -153,19 +194,14 @@ export default function BillDetailsPage() {
 
                 const data = await response.json();
 
-                if (response.status === 401) {
-                    router.replace('/login');
-                    return;
-                }
-
                 if (!response.ok) {
-                    setError(data.message || 'Failed to load bill.');
+                    setError(data.message || 'Failed to fetch bill.');
                     return;
                 }
 
                 setBill(data.bill);
             } catch {
-                setError('Unable to connect to the server.');
+                setError('Something went wrong while loading the bill.');
             } finally {
                 setLoading(false);
             }
@@ -174,7 +210,43 @@ export default function BillDetailsPage() {
         if (id) {
             loadBill();
         }
-    }, [id, router]);
+    }, [id]);
+
+    const updateBillStatus = async (newStatus: 'CONFIRMED' | 'CANCELLED') => {
+        if (!bill) {
+            return;
+        }
+
+        setStatusUpdating(true);
+        setStatusError('');
+
+        try {
+            const response = await fetch(`/api/bills/${bill._id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    billStatus: newStatus,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setStatusError(data.message || 'Failed to update bill status.');
+                return;
+            }
+
+            setBill(data.bill);
+            setStatusAction(null);
+        } catch {
+            setStatusError('Something went wrong while updating the bill status.');
+        } finally {
+            setStatusUpdating(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -186,7 +258,7 @@ export default function BillDetailsPage() {
 
     if (error) {
         return (
-            <div>
+            <div className="space-y-4">
                 <Link
                     href="/billing"
                     className="text-sm font-medium text-[var(--color-primary)] hover:underline"
@@ -194,18 +266,16 @@ export default function BillDetailsPage() {
                     ← Back to Billing
                 </Link>
 
-                <div className="mt-6">
-                    <Alert variant="danger">
-                        <p className="text-sm">{error}</p>
-                    </Alert>
-                </div>
+                <Alert variant="danger">
+                    <p className="text-sm">{error}</p>
+                </Alert>
             </div>
         );
     }
 
     if (!bill) {
         return (
-            <div>
+            <div className="space-y-4">
                 <Link
                     href="/billing"
                     className="text-sm font-medium text-[var(--color-primary)] hover:underline"
@@ -213,64 +283,117 @@ export default function BillDetailsPage() {
                     ← Back to Billing
                 </Link>
 
-                <div className="mt-6">
-                    <Alert variant="danger">
-                        <p className="text-sm">Bill not found.</p>
-                    </Alert>
-                </div>
+                <Alert variant="danger">
+                    <p className="text-sm">Bill not found.</p>
+                </Alert>
             </div>
         );
     }
 
     return (
-        <div>
-            {/* Header */}
-            <div className="mb-6">
-                <Link
-                    href="/billing"
-                    className="text-sm font-medium text-[var(--color-primary)] hover:underline"
-                >
-                    ← Back to Billing
-                </Link>
+        <div className="space-y-6">
+            {/* Page Header */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <Link
+                        href="/billing"
+                        className="mb-2 inline-block text-sm font-medium text-[var(--color-primary)] hover:underline"
+                    >
+                        ← Back to Billing
+                    </Link>
 
-                <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-[var(--color-text)]">
-                            Bill {bill.billNumber}
-                        </h1>
+                    <h1 className="text-2xl font-bold text-[var(--color-text)]">Bill Details</h1>
 
-                        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                            Created on {formatDateTime(bill.createdAt)}
-                        </p>
-                    </div>
+                    <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                        View billing and payment information.
+                    </p>
+                </div>
 
-                    <div className="flex flex-wrap gap-2">
-                        <Badge variant={getBillStatusVariant(bill.billStatus)}>
-                            {bill.billStatus}
-                        </Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={getBillStatusVariant(bill.billStatus)}>{bill.billStatus}</Badge>
 
-                        <Badge variant={getPaymentStatusVariant(bill.paymentStatus)}>
-                            {bill.paymentStatus}
-                        </Badge>
-                    </div>
+                    <Badge variant={getPaymentStatusVariant(bill.paymentStatus)}>
+                        {bill.paymentStatus}
+                    </Badge>
                 </div>
             </div>
 
+            {/* Status Error */}
+            {statusError && (
+                <Alert variant="danger">
+                    <p className="text-sm">{statusError}</p>
+                </Alert>
+            )}
+
+            {/* Bill Status Actions */}
+            {bill.billStatus !== 'CANCELLED' && (
+                <Card>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="text-base font-semibold text-[var(--color-text)]">
+                                Bill Status
+                            </h2>
+
+                            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                                Manage the current status of this bill.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                            {bill.billStatus === 'DRAFT' && (
+                                <Button
+                                    type="button"
+                                    variant="primary"
+                                    onClick={() => setStatusAction('CONFIRMED')}
+                                >
+                                    Confirm Bill
+                                </Button>
+                            )}
+
+                            <Button
+                                type="button"
+                                variant="danger"
+                                onClick={() => setStatusAction('CANCELLED')}
+                            >
+                                Cancel Bill
+                            </Button>
+                        </div>
+                    </div>
+                </Card>
+            )}
+
+            {/* Cancelled Information */}
+            {bill.billStatus === 'CANCELLED' && (
+                <Alert variant="danger">
+                    <p className="text-sm">This bill has been cancelled and cannot be modified.</p>
+                </Alert>
+            )}
+
             {/* Bill Information */}
-            <Card className="mb-6">
-                <div className="border-b border-[var(--color-border)] px-6 py-4">
-                    <h2 className="text-lg font-semibold text-[var(--color-text)]">
-                        Bill Information
-                    </h2>
+            <Card>
+                <div className="mb-5 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-lg font-semibold text-[var(--color-text)]">
+                            Bill Information
+                        </h2>
+
+                        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                            Basic billing information
+                        </p>
+                    </div>
+
+                    <span className="text-lg font-semibold text-[var(--color-primary)]">
+                        {bill.billNumber}
+                    </span>
                 </div>
 
-                <div className="grid grid-cols-1 gap-5 p-6 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
                     <div>
                         <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
                             Bill Number
                         </p>
 
-                        <p className="mt-1 text-sm font-semibold text-[var(--color-text)]">
+                        <p className="mt-1 text-sm font-medium text-[var(--color-text)]">
                             {bill.billNumber}
                         </p>
                     </div>
@@ -281,93 +404,122 @@ export default function BillDetailsPage() {
                         </p>
 
                         <p className="mt-1 text-sm text-[var(--color-text)]">
-                            {formatDateTime(bill.billDate)}
+                            {formatDate(bill.billDate)}
                         </p>
                     </div>
 
                     <div>
                         <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-                            Payment Method
+                            Created At
                         </p>
 
                         <p className="mt-1 text-sm text-[var(--color-text)]">
-                            {bill.paymentMethod || '-'}
+                            {formatDateTime(bill.createdAt)}
                         </p>
                     </div>
 
                     <div>
                         <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-                            Bill Status
+                            Updated At
                         </p>
 
-                        <div className="mt-1">
-                            <Badge variant={getBillStatusVariant(bill.billStatus)}>
-                                {bill.billStatus}
-                            </Badge>
-                        </div>
+                        <p className="mt-1 text-sm text-[var(--color-text)]">
+                            {formatDateTime(bill.updatedAt)}
+                        </p>
                     </div>
                 </div>
             </Card>
 
             {/* Patient & Doctor */}
-            <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                {/* Patient */}
                 <Card>
-                    <div className="border-b border-[var(--color-border)] px-6 py-4">
-                        <h2 className="text-lg font-semibold text-[var(--color-text)]">
-                            Patient Information
-                        </h2>
+                    <div className="mb-5 flex items-center justify-between">
+                        <div>
+                            <h2 className="text-lg font-semibold text-[var(--color-text)]">
+                                Patient Information
+                            </h2>
+
+                            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                                Patient linked to this bill
+                            </p>
+                        </div>
+
+                        <Link
+                            href={`/patients/${bill.patient._id}`}
+                            className="text-sm font-medium text-[var(--color-primary)] hover:underline"
+                        >
+                            View Patient
+                        </Link>
                     </div>
 
-                    <div className="space-y-4 p-6">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-                                Patient
+                                Patient ID
                             </p>
 
-                            <Link
-                                href={`/patients/${
-                                    (
-                                        bill.patient as unknown as {
-                                            _id: string;
-                                        }
-                                    )._id
-                                }`}
-                                className="mt-1 inline-block text-sm font-semibold text-[var(--color-primary)] hover:underline"
-                            >
-                                {bill.patient.name}
-                            </Link>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <p className="text-xs text-[var(--color-text-muted)]">Patient ID</p>
-
-                                <p className="mt-1 text-sm font-medium">{bill.patient.patientId}</p>
-                            </div>
-
-                            <div>
-                                <p className="text-xs text-[var(--color-text-muted)]">Mobile</p>
-
-                                <p className="mt-1 text-sm">{bill.patient.mobile || '-'}</p>
-                            </div>
-
-                            <div>
-                                <p className="text-xs text-[var(--color-text-muted)]">Gender</p>
-
-                                <p className="mt-1 text-sm">{bill.patient.gender || '-'}</p>
-                            </div>
-
-                            <div>
-                                <p className="text-xs text-[var(--color-text-muted)]">Age</p>
-
-                                <p className="mt-1 text-sm">{bill.patient.age ?? '-'}</p>
-                            </div>
+                            <p className="mt-1 text-sm font-medium text-[var(--color-text)]">
+                                {bill.patient.patientId}
+                            </p>
                         </div>
 
                         <div>
-                            <p className="text-xs text-[var(--color-text-muted)]">Address</p>
+                            <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                Name
+                            </p>
 
-                            <p className="mt-1 text-sm">
+                            <p className="mt-1 text-sm font-medium text-[var(--color-text)]">
+                                {bill.patient.name}
+                            </p>
+                        </div>
+
+                        <div>
+                            <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                Gender
+                            </p>
+
+                            <p className="mt-1 text-sm text-[var(--color-text)]">
+                                {bill.patient.gender || '-'}
+                            </p>
+                        </div>
+
+                        <div>
+                            <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                Age
+                            </p>
+
+                            <p className="mt-1 text-sm text-[var(--color-text)]">
+                                {bill.patient.age ?? '-'}
+                            </p>
+                        </div>
+
+                        <div>
+                            <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                Mobile
+                            </p>
+
+                            <p className="mt-1 text-sm text-[var(--color-text)]">
+                                {bill.patient.mobile || '-'}
+                            </p>
+                        </div>
+
+                        <div>
+                            <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                Blood Group
+                            </p>
+
+                            <p className="mt-1 text-sm text-[var(--color-text)]">
+                                {bill.patient.bloodGroup || '-'}
+                            </p>
+                        </div>
+
+                        <div className="sm:col-span-2">
+                            <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                Address
+                            </p>
+
+                            <p className="mt-1 text-sm text-[var(--color-text)]">
                                 {[bill.patient.address, bill.patient.city]
                                     .filter(Boolean)
                                     .join(', ') || '-'}
@@ -376,119 +528,160 @@ export default function BillDetailsPage() {
                     </div>
                 </Card>
 
+                {/* Doctor */}
                 <Card>
-                    <div className="border-b border-[var(--color-border)] px-6 py-4">
-                        <h2 className="text-lg font-semibold text-[var(--color-text)]">
-                            Referring Doctor
-                        </h2>
-                    </div>
+                    <div className="mb-5 flex items-center justify-between">
+                        <div>
+                            <h2 className="text-lg font-semibold text-[var(--color-text)]">
+                                Referring Doctor
+                            </h2>
 
-                    <div className="p-6">
-                        {bill.doctor ? (
-                            <div className="space-y-4">
-                                <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-                                        Doctor
-                                    </p>
-
-                                    <Link
-                                        href={`/doctors/${
-                                            (
-                                                bill.doctor as unknown as {
-                                                    _id: string;
-                                                }
-                                            )._id
-                                        }`}
-                                        className="mt-1 inline-block text-sm font-semibold text-[var(--color-primary)] hover:underline"
-                                    >
-                                        {bill.doctor.name}
-                                    </Link>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <p className="text-xs text-[var(--color-text-muted)]">
-                                            Doctor ID
-                                        </p>
-
-                                        <p className="mt-1 text-sm">{bill.doctor.doctorId}</p>
-                                    </div>
-
-                                    <div>
-                                        <p className="text-xs text-[var(--color-text-muted)]">
-                                            Qualification
-                                        </p>
-
-                                        <p className="mt-1 text-sm">
-                                            {bill.doctor.qualification || '-'}
-                                        </p>
-                                    </div>
-
-                                    <div>
-                                        <p className="text-xs text-[var(--color-text-muted)]">
-                                            Specialization
-                                        </p>
-
-                                        <p className="mt-1 text-sm">
-                                            {bill.doctor.specialization || '-'}
-                                        </p>
-                                    </div>
-
-                                    <div>
-                                        <p className="text-xs text-[var(--color-text-muted)]">
-                                            Mobile
-                                        </p>
-
-                                        <p className="mt-1 text-sm">
-                                            {bill.doctor.mobileNumber || '-'}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <p className="text-sm text-[var(--color-text-muted)]">
-                                No referring doctor specified.
+                            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                                Doctor linked to this bill
                             </p>
+                        </div>
+
+                        {bill.doctor && (
+                            <Link
+                                href={`/doctors/${bill.doctor._id}`}
+                                className="text-sm font-medium text-[var(--color-primary)] hover:underline"
+                            >
+                                View Doctor
+                            </Link>
                         )}
                     </div>
+
+                    {bill.doctor ? (
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                    Doctor ID
+                                </p>
+
+                                <p className="mt-1 text-sm font-medium text-[var(--color-text)]">
+                                    {bill.doctor.doctorId}
+                                </p>
+                            </div>
+
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                    Name
+                                </p>
+
+                                <p className="mt-1 text-sm font-medium text-[var(--color-text)]">
+                                    {bill.doctor.name}
+                                </p>
+                            </div>
+
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                    Qualification
+                                </p>
+
+                                <p className="mt-1 text-sm text-[var(--color-text)]">
+                                    {bill.doctor.qualification || '-'}
+                                </p>
+                            </div>
+
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                    Specialization
+                                </p>
+
+                                <p className="mt-1 text-sm text-[var(--color-text)]">
+                                    {bill.doctor.specialization || '-'}
+                                </p>
+                            </div>
+
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                    Registration No.
+                                </p>
+
+                                <p className="mt-1 text-sm text-[var(--color-text)]">
+                                    {bill.doctor.registrationNumber || '-'}
+                                </p>
+                            </div>
+
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                    Mobile
+                                </p>
+
+                                <p className="mt-1 text-sm text-[var(--color-text)]">
+                                    {bill.doctor.mobileNumber || '-'}
+                                </p>
+                            </div>
+
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                    Clinic
+                                </p>
+
+                                <p className="mt-1 text-sm text-[var(--color-text)]">
+                                    {bill.doctor.clinicName || '-'}
+                                </p>
+                            </div>
+
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                    Hospital
+                                </p>
+
+                                <p className="mt-1 text-sm text-[var(--color-text)]">
+                                    {bill.doctor.hospitalName || '-'}
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="rounded-lg border border-dashed border-[var(--color-border)] p-6 text-center">
+                            <p className="text-sm text-[var(--color-text-muted)]">
+                                No referring doctor was associated with this bill.
+                            </p>
+                        </div>
+                    )}
                 </Card>
             </div>
 
-            {/* Tests */}
-            <Card className="mb-6">
-                <div className="border-b border-[var(--color-border)] px-6 py-4">
-                    <h2 className="text-lg font-semibold text-[var(--color-text)]">Tests</h2>
+            {/* Bill Items */}
+            <Card>
+                <div className="mb-5">
+                    <h2 className="text-lg font-semibold text-[var(--color-text)]">Bill Items</h2>
+
+                    <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                        Tests and charges included in this bill
+                    </p>
                 </div>
 
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-[800px] text-sm">
                         <thead>
-                            <tr className="border-b border-[var(--color-border)] bg-slate-50">
-                                <th className="px-6 py-3 text-left font-semibold text-[var(--color-text)]">
+                            <tr className="border-b border-[var(--color-border)]">
+                                <th className="px-3 py-3 text-left font-semibold text-[var(--color-text-muted)]">
                                     #
                                 </th>
 
-                                <th className="px-6 py-3 text-left font-semibold text-[var(--color-text)]">
+                                <th className="px-3 py-3 text-left font-semibold text-[var(--color-text-muted)]">
                                     Test
                                 </th>
 
-                                <th className="px-6 py-3 text-left font-semibold text-[var(--color-text)]">
+                                <th className="px-3 py-3 text-left font-semibold text-[var(--color-text-muted)]">
                                     Code
                                 </th>
 
-                                <th className="px-6 py-3 text-right font-semibold text-[var(--color-text)]">
+                                <th className="px-3 py-3 text-center font-semibold text-[var(--color-text-muted)]">
                                     Qty
                                 </th>
 
-                                <th className="px-6 py-3 text-right font-semibold text-[var(--color-text)]">
+                                <th className="px-3 py-3 text-right font-semibold text-[var(--color-text-muted)]">
                                     Unit Price
                                 </th>
 
-                                <th className="px-6 py-3 text-right font-semibold text-[var(--color-text)]">
+                                <th className="px-3 py-3 text-right font-semibold text-[var(--color-text-muted)]">
                                     Discount
                                 </th>
 
-                                <th className="px-6 py-3 text-right font-semibold text-[var(--color-text)]">
+                                <th className="px-3 py-3 text-right font-semibold text-[var(--color-text-muted)]">
                                     Total
                                 </th>
                             </tr>
@@ -497,42 +690,42 @@ export default function BillDetailsPage() {
                         <tbody>
                             {bill.items.map((item, index) => (
                                 <tr
-                                    key={index}
+                                    key={`${item.testCode}-${index}`}
                                     className="border-b border-[var(--color-border)] last:border-b-0"
                                 >
-                                    <td className="px-6 py-4 text-[var(--color-text-muted)]">
+                                    <td className="px-3 py-3 text-[var(--color-text-muted)]">
                                         {index + 1}
                                     </td>
 
-                                    <td className="px-6 py-4">
+                                    <td className="px-3 py-3">
                                         <p className="font-medium text-[var(--color-text)]">
                                             {item.testName}
                                         </p>
 
-                                        {typeof item.test !== 'string' && item.test?.department && (
+                                        {typeof item.test !== 'string' && item.test && (
                                             <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                                                {item.test.department}
+                                                {item.test.department || item.test.testType || '-'}
                                             </p>
                                         )}
                                     </td>
 
-                                    <td className="px-6 py-4 text-[var(--color-text-muted)]">
+                                    <td className="px-3 py-3 font-medium text-[var(--color-text)]">
                                         {item.testCode}
                                     </td>
 
-                                    <td className="px-6 py-4 text-right">{item.quantity}</td>
+                                    <td className="px-3 py-3 text-center text-[var(--color-text)]">
+                                        {item.quantity}
+                                    </td>
 
-                                    <td className="px-6 py-4 text-right">
+                                    <td className="px-3 py-3 text-right text-[var(--color-text)]">
                                         {formatCurrency(item.unitPrice)}
                                     </td>
 
-                                    <td className="px-6 py-4 text-right text-red-600">
-                                        {item.discountAmount > 0
-                                            ? `-${formatCurrency(item.discountAmount)}`
-                                            : '-'}
+                                    <td className="px-3 py-3 text-right text-[var(--color-text)]">
+                                        {formatCurrency(item.discountAmount)}
                                     </td>
 
-                                    <td className="px-6 py-4 text-right font-semibold text-[var(--color-text)]">
+                                    <td className="px-3 py-3 text-right font-semibold text-[var(--color-text)]">
                                         {formatCurrency(item.totalAmount)}
                                     </td>
                                 </tr>
@@ -542,114 +735,130 @@ export default function BillDetailsPage() {
                 </div>
             </Card>
 
-            {/* Financial Summary */}
-            <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* Payment & Summary */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                {/* Payment Information */}
                 <Card>
-                    <div className="border-b border-[var(--color-border)] px-6 py-4">
+                    <div className="mb-5">
                         <h2 className="text-lg font-semibold text-[var(--color-text)]">
                             Payment Information
                         </h2>
+
+                        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                            Payment and collection details
+                        </p>
                     </div>
 
-                    <div className="p-6">
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-[var(--color-text-muted)]">
-                                    Payment Status
-                                </span>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                Payment Status
+                            </p>
 
+                            <div className="mt-2">
                                 <Badge variant={getPaymentStatusVariant(bill.paymentStatus)}>
                                     {bill.paymentStatus}
                                 </Badge>
                             </div>
+                        </div>
 
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-[var(--color-text-muted)]">
-                                    Payment Method
-                                </span>
+                        <div>
+                            <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                Payment Method
+                            </p>
 
-                                <span className="text-sm font-medium text-[var(--color-text)]">
-                                    {bill.paymentMethod || '-'}
-                                </span>
-                            </div>
+                            <p className="mt-1 text-sm text-[var(--color-text)]">
+                                {formatPaymentMethod(bill.paymentMethod)}
+                            </p>
+                        </div>
 
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-[var(--color-text-muted)]">
-                                    Paid Amount
-                                </span>
+                        <div>
+                            <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                Paid Amount
+                            </p>
 
-                                <span className="text-sm font-semibold text-green-700">
-                                    {formatCurrency(bill.paidAmount)}
-                                </span>
-                            </div>
+                            <p className="mt-1 text-lg font-semibold text-[var(--color-success)]">
+                                {formatCurrency(bill.paidAmount)}
+                            </p>
+                        </div>
 
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-[var(--color-text-muted)]">
-                                    Due Amount
-                                </span>
+                        <div>
+                            <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                                Due Amount
+                            </p>
 
-                                <span className="text-sm font-semibold text-red-600">
-                                    {formatCurrency(bill.dueAmount)}
-                                </span>
-                            </div>
+                            <p className="mt-1 text-lg font-semibold text-[var(--color-danger)]">
+                                {formatCurrency(bill.dueAmount)}
+                            </p>
                         </div>
                     </div>
                 </Card>
 
+                {/* Bill Summary */}
                 <Card>
-                    <div className="border-b border-[var(--color-border)] px-6 py-4">
+                    <div className="mb-5">
                         <h2 className="text-lg font-semibold text-[var(--color-text)]">
                             Bill Summary
                         </h2>
+
+                        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                            Complete financial summary
+                        </p>
                     </div>
 
-                    <div className="p-6">
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-[var(--color-text-muted)]">Subtotal</span>
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-[var(--color-text-muted)]">Subtotal</span>
 
-                                <span>{formatCurrency(bill.subtotal)}</span>
-                            </div>
+                            <span className="text-sm font-medium text-[var(--color-text)]">
+                                {formatCurrency(bill.subtotal)}
+                            </span>
+                        </div>
 
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-[var(--color-text-muted)]">Discount</span>
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-[var(--color-text-muted)]">Discount</span>
 
-                                <span className="text-red-600">
-                                    -{formatCurrency(bill.discountAmount)}
+                            <span className="text-sm font-medium text-[var(--color-danger)]">
+                                -{formatCurrency(bill.discountAmount)}
+                            </span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-[var(--color-text-muted)]">Tax</span>
+
+                            <span className="text-sm font-medium text-[var(--color-text)]">
+                                {formatCurrency(bill.taxAmount)}
+                            </span>
+                        </div>
+
+                        <div className="border-t border-[var(--color-border)] pt-3">
+                            <div className="flex items-center justify-between">
+                                <span className="text-base font-semibold text-[var(--color-text)]">
+                                    Grand Total
+                                </span>
+
+                                <span className="text-xl font-bold text-[var(--color-primary)]">
+                                    {formatCurrency(bill.grandTotal)}
                                 </span>
                             </div>
+                        </div>
 
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-[var(--color-text-muted)]">Tax</span>
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-[var(--color-text-muted)]">Paid</span>
 
-                                <span>{formatCurrency(bill.taxAmount)}</span>
-                            </div>
+                            <span className="text-sm font-semibold text-[var(--color-success)]">
+                                {formatCurrency(bill.paidAmount)}
+                            </span>
+                        </div>
 
-                            <div className="border-t border-[var(--color-border)] pt-3">
-                                <div className="flex items-center justify-between">
-                                    <span className="font-semibold">Grand Total</span>
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-[var(--color-text)]">
+                                Due
+                            </span>
 
-                                    <span className="text-xl font-bold text-[var(--color-primary)]">
-                                        {formatCurrency(bill.grandTotal)}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-[var(--color-text-muted)]">Paid</span>
-
-                                <span className="font-semibold text-green-700">
-                                    {formatCurrency(bill.paidAmount)}
-                                </span>
-                            </div>
-
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-[var(--color-text-muted)]">Due</span>
-
-                                <span className="font-semibold text-red-600">
-                                    {formatCurrency(bill.dueAmount)}
-                                </span>
-                            </div>
+                            <span className="text-base font-bold text-[var(--color-danger)]">
+                                {formatCurrency(bill.dueAmount)}
+                            </span>
                         </div>
                     </div>
                 </Card>
@@ -657,54 +866,64 @@ export default function BillDetailsPage() {
 
             {/* Notes */}
             {bill.notes && (
-                <Card className="mb-6">
-                    <div className="border-b border-[var(--color-border)] px-6 py-4">
+                <Card>
+                    <div className="mb-3">
                         <h2 className="text-lg font-semibold text-[var(--color-text)]">Notes</h2>
                     </div>
 
-                    <div className="p-6">
-                        <p className="whitespace-pre-wrap text-sm text-[var(--color-text)]">
+                    <div className="rounded-lg bg-slate-50 p-4">
+                        <p className="whitespace-pre-wrap text-sm leading-6 text-[var(--color-text)]">
                             {bill.notes}
                         </p>
                     </div>
                 </Card>
             )}
 
-            {/* Record Information */}
-            <Card className="mb-6">
-                <div className="border-b border-[var(--color-border)] px-6 py-4">
-                    <h2 className="text-lg font-semibold text-[var(--color-text)]">
-                        Record Information
-                    </h2>
-                </div>
+            {/* Confirmation Modal */}
+            <Modal
+                open={statusAction !== null}
+                onClose={() => {
+                    if (!statusUpdating) {
+                        setStatusAction(null);
+                    }
+                }}
+                title={statusAction === 'CONFIRMED' ? 'Confirm Bill' : 'Cancel Bill'}
+            >
+                <div className="space-y-5">
+                    <p className="text-sm leading-6 text-[var(--color-text-muted)]">
+                        {statusAction === 'CONFIRMED'
+                            ? `Are you sure you want to confirm bill ${bill.billNumber}?`
+                            : `Are you sure you want to cancel bill ${bill.billNumber}? This action cannot be reversed.`}
+                    </p>
 
-                <div className="grid grid-cols-1 gap-5 p-6 sm:grid-cols-2">
-                    <div>
-                        <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-                            Created At
-                        </p>
+                    <div className="flex justify-end gap-3">
+                        <Button
+                            type="button"
+                            onClick={() => setStatusAction(null)}
+                            disabled={statusUpdating}
+                        >
+                            No, Go Back
+                        </Button>
 
-                        <p className="mt-1 text-sm">{formatDateTime(bill.createdAt)}</p>
+                        <Button
+                            type="button"
+                            variant={statusAction === 'CANCELLED' ? 'danger' : 'primary'}
+                            onClick={() => {
+                                if (statusAction) {
+                                    updateBillStatus(statusAction);
+                                }
+                            }}
+                            disabled={statusUpdating}
+                        >
+                            {statusUpdating
+                                ? 'Updating...'
+                                : statusAction === 'CONFIRMED'
+                                  ? 'Yes, Confirm'
+                                  : 'Yes, Cancel Bill'}
+                        </Button>
                     </div>
-
-                    <div>
-                        <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-                            Last Updated
-                        </p>
-
-                        <p className="mt-1 text-sm">{formatDateTime(bill.updatedAt)}</p>
-                    </div>
                 </div>
-            </Card>
-
-            {/* Actions */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-                <Link href="/billing">
-                    <Button variant="secondary" className="w-full sm:w-auto">
-                        Back to Billing
-                    </Button>
-                </Link>
-            </div>
+            </Modal>
         </div>
     );
 }

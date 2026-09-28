@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import {connectDB} from '@/lib/db';
+import { connectDB } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 import { generateBillNumber } from '@/lib/bill';
 import { createBillSchema } from '@/lib/validations/bill';
@@ -470,3 +470,5 @@ export async function GET(request: Request) {
         );
     }
 }
+
+
